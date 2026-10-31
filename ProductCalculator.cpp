@@ -4,18 +4,104 @@
 #include "framework.h"
 #include "ProductCalculator.h"
 
+#include <algorithm>
+#include <filesystem>
+#include <string>
+#include <vector>
+
 #define MAX_LOADSTRING 100
 
 // Globale Variablen:
 HINSTANCE hInst;                                // Aktuelle Instanz
 WCHAR szTitle[MAX_LOADSTRING];                  // Titelleistentext
 WCHAR szWindowClass[MAX_LOADSTRING];            // Der Klassenname des Hauptfensters.
+HWND g_hProductDropdown = nullptr;
+std::vector<std::wstring> g_productFolderPaths;
+std::wstring g_selectedProductPath;
 
 // Vorwärtsdeklarationen der in diesem Codemodul enthaltenen Funktionen:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+
+std::filesystem::path FindProductDataDirectory()
+{
+    wchar_t modulePath[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
+
+    std::filesystem::path currentPath = std::filesystem::path(modulePath).parent_path();
+    while (!currentPath.empty())
+    {
+        const std::filesystem::path candidatePath = currentPath / L"produktdaten";
+        std::error_code ec;
+        if (std::filesystem::exists(candidatePath, ec) && std::filesystem::is_directory(candidatePath, ec))
+        {
+            return candidatePath;
+        }
+
+        if (currentPath == currentPath.root_path())
+        {
+            break;
+        }
+
+        currentPath = currentPath.parent_path();
+    }
+
+    return {};
+}
+
+void PopulateProductDropdown(HWND hCombo)
+{
+    SendMessageW(hCombo, CB_RESETCONTENT, 0, 0);
+    g_productFolderPaths.clear();
+    g_selectedProductPath.clear();
+
+    const std::filesystem::path productDataPath = FindProductDataDirectory();
+    if (productDataPath.empty())
+    {
+        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Kein produktdaten-Ordner gefunden"));
+        EnableWindow(hCombo, FALSE);
+        return;
+    }
+
+    std::vector<std::filesystem::path> productFolders;
+    for (const auto& entry : std::filesystem::directory_iterator(productDataPath))
+    {
+        std::error_code ec;
+        if (entry.is_directory(ec))
+        {
+            productFolders.push_back(entry.path());
+        }
+    }
+
+    std::sort(productFolders.begin(), productFolders.end(), [](const auto& left, const auto& right)
+        {
+            return left.filename().wstring() < right.filename().wstring();
+        });
+
+    for (const auto& productFolder : productFolders)
+    {
+        const std::wstring productName = productFolder.filename().wstring();
+        const int itemIndex = static_cast<int>(SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(productName.c_str())));
+        if (itemIndex >= 0)
+        {
+            g_productFolderPaths.push_back(productFolder.wstring());
+            SendMessageW(hCombo, CB_SETITEMDATA, static_cast<WPARAM>(itemIndex), static_cast<LPARAM>(g_productFolderPaths.size() - 1));
+        }
+    }
+
+    if (g_productFolderPaths.empty())
+    {
+        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Keine Produktordner vorhanden"));
+        EnableWindow(hCombo, FALSE);
+        return;
+    }
+
+    EnableWindow(hCombo, TRUE);
+    SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
+    g_selectedProductPath = g_productFolderPaths.front();
+}
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -96,7 +182,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    hInst = hInstance; // Instanzenhandle in der globalen Variablen speichern
 
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+      CW_USEDEFAULT, 0, 1000, 500, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd)
    {
@@ -123,9 +209,51 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+    case WM_CREATE:
+        g_hProductDropdown = CreateWindowExW(
+            0,
+            L"COMBOBOX",
+            nullptr,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
+            10,
+            35,
+            420,
+            200,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_PRODUCT_DROPDOWN),
+            hInst,
+            nullptr);
+
+        if (g_hProductDropdown != nullptr)
+        {
+            PopulateProductDropdown(g_hProductDropdown);
+        }
+        break;
+    case WM_SIZE:
+        if (g_hProductDropdown != nullptr)
+        {
+            MoveWindow(g_hProductDropdown, 10, 35, max(180, LOWORD(lParam) - 20), 200, TRUE);
+        }
+        break;
     case WM_COMMAND:
         {
-            int wmId = LOWORD(wParam);
+            const int wmId = LOWORD(wParam);
+            const int wmEvent = HIWORD(wParam);
+
+            if (wmId == IDC_PRODUCT_DROPDOWN && wmEvent == CBN_SELCHANGE)
+            {
+                const int selectedIndex = static_cast<int>(SendMessageW(g_hProductDropdown, CB_GETCURSEL, 0, 0));
+                if (selectedIndex != CB_ERR)
+                {
+                    const auto itemData = static_cast<size_t>(SendMessageW(g_hProductDropdown, CB_GETITEMDATA, selectedIndex, 0));
+                    if (itemData < g_productFolderPaths.size())
+                    {
+                        g_selectedProductPath = g_productFolderPaths[itemData];
+                    }
+                }
+                return 0;
+            }
+
             switch (wmId)
             {
             case IDM_ABOUT:
@@ -142,29 +270,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
-            BeginPaint(hWnd, &ps);
+            HDC hdc = BeginPaint(hWnd, &ps);
 
-            // Text für "Bitte wählen sie ein Produkt".
-            HDC hdc = GetDC(hWnd);
-            SelectObject(hdc, GetStockObject(NULL_PEN));
-            SelectObject(hdc, GetStockObject(NULL_BRUSH));
             SetBkMode(hdc, TRANSPARENT);
 
             RECT rc;
-            rc.left = 10;         // ← Abstand links
-            rc.top = 10;         // ← Höher oben
-            rc.right = 400;       // ← Platz rechts
-            rc.bottom = 20;      // ← Platz unten
+            rc.left = 10;
+            rc.top = 10;
+            rc.right = 700;
+            rc.bottom = 30;
 
             const wchar_t* text = L"Bitte wählen Sie ein zu kalkulierendes Produkt aus.";
             DrawTextW(hdc, text, -1, &rc, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
-
-            ReleaseDC(hWnd, hdc);
 
             EndPaint(hWnd, &ps);
         }
         break;
     case WM_DESTROY:
+        g_productFolderPaths.clear();
+        g_selectedProductPath.clear();
+        g_hProductDropdown = nullptr;
         PostQuitMessage(0);
         break;
     default:
