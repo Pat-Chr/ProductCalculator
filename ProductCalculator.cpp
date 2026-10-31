@@ -14,6 +14,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <memory>
 
 #define MAX_LOADSTRING 100
 
@@ -44,12 +45,14 @@ HWND g_hCalcGroupBox = nullptr;
 HWND g_hBasePriceLabel = nullptr;
 HWND g_hQuantityHeaderLabel = nullptr;
 HWND g_hTotalPriceLabel = nullptr;
+HWND g_hShowSummaryButton = nullptr;
 std::vector<HWND> g_optionLabels;
 std::vector<HWND> g_optionQuantityInputs;
 std::vector<std::wstring> g_productFolderPaths;
 std::wstring g_selectedProductPath;
 ProductConfiguration g_currentConfiguration;
 AppSettings g_appSettings;
+std::wstring g_summaryWindowText;
 
 // Vorwärtsdeklarationen der in diesem Codemodul enthaltenen Funktionen:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -65,6 +68,12 @@ void ClearDynamicOptionControls();
 void UpdateTotalPriceLabel();
 void RenderProductConfiguration(HWND hWnd);
 void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight);
+ATOM RegisterSummaryWindowClass(HINSTANCE hInstance);
+LRESULT CALLBACK SummaryWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+int GetOptionQuantity(size_t index);
+std::wstring GetSelectedProductDisplayName();
+std::wstring BuildSummaryText();
+void ShowSummaryWindow(HWND hParent);
 
 std::filesystem::path FindProductDataDirectory()
 {
@@ -426,6 +435,11 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
             MoveWindow(g_hTotalPriceLabel, left + 10, max(groupTop + 66, nextTop + 10), width - 20, 22, TRUE);
         }
     }
+
+    if (g_hShowSummaryButton != nullptr)
+    {
+        MoveWindow(g_hShowSummaryButton, 20, clientHeight - 56, 160, 28, TRUE);
+    }
 }
 
 void PopulateProductDropdown(HWND hCombo)
@@ -676,6 +690,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             nullptr);
 
+        g_hShowSummaryButton = CreateWindowExW(
+            0, L"BUTTON", L"Ergebnis anzeigen",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            0, 0, 160, 28,
+            hWnd, reinterpret_cast<HMENU>(IDC_BTN_SHOW_SUMMARY), hInst, nullptr);
+
         if (g_hProductDropdown != nullptr)
         {
             PopulateProductDropdown(g_hProductDropdown);
@@ -743,6 +763,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return 0;
         }
 
+        if (wmId == IDC_BTN_SHOW_SUMMARY)
+        {
+            ShowSummaryWindow(hWnd);
+            return 0;
+        }
+
         switch (wmId)
         {
         case IDM_ABOUT:
@@ -786,6 +812,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hBasePriceLabel = nullptr;
         g_hQuantityHeaderLabel = nullptr;
         g_hTotalPriceLabel = nullptr;
+        g_hShowSummaryButton = nullptr;
         PostQuitMessage(0);
         break;
     default:
@@ -812,4 +839,225 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+int GetOptionQuantity(size_t index)
+{
+    if (index >= g_optionQuantityInputs.size() || g_optionQuantityInputs[index] == nullptr)
+    {
+        return 0;
+    }
+
+    wchar_t buffer[64] = {};
+    GetWindowTextW(g_optionQuantityInputs[index], buffer, static_cast<int>(std::size(buffer)));
+
+    try
+    {
+        int value = std::stoi(buffer);
+        return (value < 0) ? 0 : value;
+    }
+    catch (...)
+    {
+        return 0;
+    }
+}
+
+std::wstring GetSelectedProductDisplayName()
+{
+    if (!g_selectedProductPath.empty())
+    {
+        return std::filesystem::path(g_selectedProductPath).filename().wstring();
+    }
+
+    if (g_hProductDropdown != nullptr)
+    {
+        int sel = static_cast<int>(SendMessageW(g_hProductDropdown, CB_GETCURSEL, 0, 0));
+        if (sel >= 0)
+        {
+            wchar_t text[256] = {};
+            SendMessageW(g_hProductDropdown, CB_GETLBTEXT, static_cast<WPARAM>(sel), reinterpret_cast<LPARAM>(text));
+            return text;
+        }
+    }
+
+    return L"(kein Produkt)";
+}
+
+std::wstring BuildSummaryText()
+{
+    std::wostringstream out;
+    out << L"Produkt: " << GetSelectedProductDisplayName() << L"\r\n";
+    out << L"Basispreis: " << FormatPrice(g_currentConfiguration.basePrice) << L"\r\n";
+    out << L"\r\nOptionen:\r\n";
+
+    double total = g_currentConfiguration.basePrice;
+
+    for (size_t i = 0; i < g_currentConfiguration.options.size(); ++i)
+    {
+        const ProductOption& option = g_currentConfiguration.options[i];
+        const int quantity = GetOptionQuantity(i);
+        const double lineTotal = static_cast<double>(quantity) * option.price;
+        total += lineTotal;
+
+        out << L" - " << option.name
+            << L": " << quantity
+            << L" x " << FormatPrice(option.price)
+            << L" = " << FormatPrice(lineTotal)
+            << L"\r\n";
+    }
+
+    out << L"\r\nGesamtpreis: " << FormatPrice(total) << L"\r\n";
+    out << L"\r\nHinweis: Text markieren und mit Strg+C kopieren oder Button \"Kopieren\" verwenden.";
+    return out.str();
+}
+
+ATOM RegisterSummaryWindowClass(HINSTANCE hInstance)
+{
+    static bool isRegistered = false;
+    static ATOM atom = 0;
+
+    if (isRegistered)
+    {
+        return atom;
+    }
+
+    WNDCLASSEXW wcex = {};
+    wcex.cbSize = sizeof(WNDCLASSEX);
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc = SummaryWndProc;
+    wcex.cbClsExtra = 0;
+    wcex.cbWndExtra = 0;
+    wcex.hInstance = hInstance;
+    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PRODUCTCALCULATOR));
+    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wcex.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+    wcex.lpszMenuName = nullptr;
+    wcex.lpszClassName = L"ProductSummaryWindowClass";
+    wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+
+    atom = RegisterClassExW(&wcex);
+    isRegistered = true;
+    return atom;
+}
+
+void ShowSummaryWindow(HWND hParent)
+{
+    g_summaryWindowText = BuildSummaryText();
+
+    RegisterSummaryWindowClass(hInst);
+
+    HWND hSummary = CreateWindowExW(
+        WS_EX_DLGMODALFRAME,
+        L"ProductSummaryWindowClass",
+        L"Produktübersicht",
+        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+        CW_USEDEFAULT, CW_USEDEFAULT, 760, 520,
+        hParent,
+        nullptr,
+        hInst,
+        nullptr);
+
+    if (hSummary != nullptr)
+    {
+        ShowWindow(hSummary, SW_SHOW);
+        UpdateWindow(hSummary);
+        SetForegroundWindow(hSummary);
+    }
+}
+
+LRESULT CALLBACK SummaryWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_CREATE:
+    {
+        CreateWindowExW(
+            WS_EX_CLIENTEDGE, L"EDIT", g_summaryWindowText.c_str(),
+            WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL | ES_READONLY,
+            12, 12, 720, 420,
+            hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_EDIT), hInst, nullptr);
+
+        CreateWindowExW(
+            0, L"BUTTON", L"Kopieren",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            12, 440, 120, 32,
+            hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_COPY), hInst, nullptr);
+
+        CreateWindowExW(
+            0, L"BUTTON", L"Schließen",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            612, 440, 120, 32,
+            hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_CLOSE), hInst, nullptr);
+
+        return 0;
+    }
+    case WM_SIZE:
+    {
+        const int width = LOWORD(lParam);
+        const int height = HIWORD(lParam);
+
+        HWND hEdit = GetDlgItem(hWnd, IDC_SUMMARY_EDIT);
+        HWND hCopy = GetDlgItem(hWnd, IDC_SUMMARY_COPY);
+        HWND hClose = GetDlgItem(hWnd, IDC_SUMMARY_CLOSE);
+
+        const int margin = 12;
+        const int buttonH = 32;
+        const int buttonW = 120;
+        const int editH = height - (margin * 3) - buttonH;
+
+        if (hEdit)  MoveWindow(hEdit, margin, margin, width - (margin * 2), max(120, editH), TRUE);
+        if (hCopy)  MoveWindow(hCopy, margin, height - margin - buttonH, buttonW, buttonH, TRUE);
+        if (hClose) MoveWindow(hClose, width - margin - buttonW, height - margin - buttonH, buttonW, buttonH, TRUE);
+        return 0;
+    }
+    case WM_COMMAND:
+    {
+        const int id = LOWORD(wParam);
+        if (id == IDC_SUMMARY_CLOSE)
+        {
+            DestroyWindow(hWnd);
+            return 0;
+        }
+
+        if (id == IDC_SUMMARY_COPY)
+        {
+            HWND hEdit = GetDlgItem(hWnd, IDC_SUMMARY_EDIT);
+            const int len = GetWindowTextLengthW(hEdit);
+            std::wstring text;
+            text.resize(static_cast<size_t>(len));
+            if (len > 0)
+            {
+                GetWindowTextW(hEdit, text.data(), len + 1);
+            }
+
+            if (OpenClipboard(hWnd))
+            {
+                EmptyClipboard();
+                const size_t bytes = (text.size() + 1) * sizeof(wchar_t);
+                HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, bytes);
+                if (hMem)
+                {
+                    void* ptr = GlobalLock(hMem);
+                    if (ptr)
+                    {
+                        memcpy(ptr, text.c_str(), bytes);
+                        GlobalUnlock(hMem);
+                        SetClipboardData(CF_UNICODETEXT, hMem);
+                    }
+                    else
+                    {
+                        GlobalFree(hMem);
+                    }
+                }
+                CloseClipboard();
+            }
+            return 0;
+        }
+        break;
+    }
+    case WM_DESTROY:
+        return 0;
+    }
+
+    return DefWindowProcW(hWnd, message, wParam, lParam);
 }
