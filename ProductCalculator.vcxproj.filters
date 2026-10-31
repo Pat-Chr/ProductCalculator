@@ -36,12 +36,18 @@
     <ClInclude Include="EditProductWindow.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="NewProductCreator.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ProductCalculator.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="EditProductWindow.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="NewProductCreator.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
@@ -71,3 +77,4 @@
     <None Include="settings.json" />
   </ItemGroup>
 </Project>
+
