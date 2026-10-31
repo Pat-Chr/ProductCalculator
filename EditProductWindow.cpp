@@ -200,7 +200,7 @@ namespace
 			state->cancelButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Abbrechen",
+				L"Schließen",
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
 				0,
 				0,

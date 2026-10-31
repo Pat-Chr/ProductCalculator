@@ -1,3 +1,4 @@
+// file: E:\Visual Studio Projects\repos\ProductCalculator\ProductCalculator.cpp
 // ProductCalculator.cpp : Definiert den Einstiegspunkt für die Anwendung.
 //
 
@@ -256,6 +257,7 @@ void ClearDynamicOptionControls()
         }
     }
 
+
     g_optionCheckboxes.clear();
     g_optionQuantityInputs.clear();
 }
@@ -314,6 +316,11 @@ void RenderProductConfiguration(HWND hWnd)
         const ProductOption& option = g_currentConfiguration.options[index];
         const std::wstring checkboxText = option.name + L" (+" + FormatPrice(option.price) + L")";
 
+        const int checkboxWidth = 150;
+        const int checkboxHeight = 20;
+        const int quantityWidth = 70;
+        const int quantityHeight = 22;
+
         HWND checkbox = CreateWindowExW(
             0,
             L"BUTTON",
@@ -321,8 +328,8 @@ void RenderProductConfiguration(HWND hWnd)
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
             0,
             0,
-            0,
-            0,
+            checkboxWidth,
+            checkboxHeight,
             hWnd,
             reinterpret_cast<HMENU>(IDC_OPTION_CHECKBOX_BASE + index),
             hInst,
@@ -335,8 +342,8 @@ void RenderProductConfiguration(HWND hWnd)
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_LEFT | ES_NUMBER,
             0,
             0,
-            0,
-            0,
+            quantityWidth,
+            quantityHeight,
             hWnd,
             reinterpret_cast<HMENU>(IDC_OPTION_QUANTITY_BASE + index),
             hInst,
@@ -351,6 +358,14 @@ void RenderProductConfiguration(HWND hWnd)
     UpdateLayout(hWnd, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
     UpdateTotalPriceLabel();
 }
+
+void CloseAppButton(HWND hWnd)
+{
+    RECT clientRect;
+    GetClientRect(hWnd, &clientRect);
+    int clientWidth = clientRect.right - clientRect.left;
+}
+
 
 void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
 {
@@ -673,11 +688,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 RenderProductConfiguration(hWnd);
             }
         }
+
+        // Schließen-Button und Kreuz oben rechts erstellen
+        CloseAppButton(hWnd);
+
         break;
     }
     case WM_SIZE:
-        UpdateLayout(hWnd, LOWORD(lParam), HIWORD(lParam));
+    {
+        int clientWidth = LOWORD(lParam);
+        int clientHeight = HIWORD(lParam);
+
+        UpdateLayout(hWnd, clientWidth, clientHeight);
+
+
+
         break;
+    }
     case WM_COMMAND:
     {
         const int wmId = LOWORD(wParam);
@@ -768,12 +795,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         EndPaint(hWnd, &ps);
     }
     break;
-    case WM_PRODUCT_CONFIGURATION_UPDATED:
-        if (!g_selectedProductPath.empty())
-        {
-            RenderProductConfiguration(hWnd);
-        }
-        return 0;
     case WM_DESTROY:
         ClearDynamicOptionControls();
         g_productFolderPaths.clear();
