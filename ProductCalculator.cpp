@@ -5,25 +5,54 @@
 #include "ProductCalculator.h"
 
 #include <algorithm>
+#include <fstream>
 #include <filesystem>
+#include <regex>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #define MAX_LOADSTRING 100
+
+struct ProductOption
+{
+    std::wstring name;
+    double price = 0.0;
+};
+
+struct ProductConfiguration
+{
+    double basePrice = 0.0;
+    std::vector<ProductOption> options;
+};
 
 // Globale Variablen:
 HINSTANCE hInst;                                // Aktuelle Instanz
 WCHAR szTitle[MAX_LOADSTRING];                  // Titelleistentext
 WCHAR szWindowClass[MAX_LOADSTRING];            // Der Klassenname des Hauptfensters.
 HWND g_hProductDropdown = nullptr;
+HWND g_hCalcGroupBox = nullptr;
+HWND g_hBasePriceLabel = nullptr;
+HWND g_hTotalPriceLabel = nullptr;
+std::vector<HWND> g_optionCheckboxes;
 std::vector<std::wstring> g_productFolderPaths;
 std::wstring g_selectedProductPath;
+ProductConfiguration g_currentConfiguration;
 
 // Vorwärtsdeklarationen der in diesem Codemodul enthaltenen Funktionen:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+
+std::wstring ToWideString(const std::string& text);
+std::wstring FormatEuro(double value);
+bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductConfiguration& configuration);
+void ClearDynamicOptionControls();
+void UpdateTotalPriceLabel();
+void RenderProductConfiguration(HWND hWnd);
+void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight);
 
 std::filesystem::path FindProductDataDirectory()
 {
@@ -49,6 +78,205 @@ std::filesystem::path FindProductDataDirectory()
     }
 
     return {};
+}
+
+std::wstring ToWideString(const std::string& text)
+{
+    if (text.empty())
+    {
+        return L"";
+    }
+
+    int requiredSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.c_str(), static_cast<int>(text.size()), nullptr, 0);
+    UINT codePage = CP_UTF8;
+    DWORD flags = MB_ERR_INVALID_CHARS;
+
+    if (requiredSize == 0)
+    {
+        codePage = CP_ACP;
+        flags = 0;
+        requiredSize = MultiByteToWideChar(codePage, flags, text.c_str(), static_cast<int>(text.size()), nullptr, 0);
+    }
+
+    if (requiredSize == 0)
+    {
+        return L"";
+    }
+
+    std::wstring result(requiredSize, L'\0');
+    MultiByteToWideChar(codePage, flags, text.c_str(), static_cast<int>(text.size()), result.data(), requiredSize);
+    return result;
+}
+
+std::wstring FormatEuro(double value)
+{
+    std::wostringstream stream;
+    stream.setf(std::ios::fixed);
+    stream.precision(2);
+    stream << value;
+
+    std::wstring number = stream.str();
+    std::replace(number.begin(), number.end(), L'.', L',');
+    return number + L" €";
+}
+
+bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductConfiguration& configuration)
+{
+    configuration = ProductConfiguration{};
+
+    const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"produkt.json";
+    std::ifstream file(configPath, std::ios::binary);
+    if (!file)
+    {
+        return false;
+    }
+
+    const std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+    try
+    {
+        std::smatch basePriceMatch;
+        const std::regex basePriceRegex(R"("basispreis"\s*:\s*(-?\d+(?:\.\d+)?))");
+        if (std::regex_search(content, basePriceMatch, basePriceRegex))
+        {
+            configuration.basePrice = std::stod(basePriceMatch[1].str());
+        }
+
+        const std::regex optionRegex(R"opt(\{\s*"name"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,\s*"preis"\s*:\s*(-?\d+(?:\.\d+)?)\s*\})opt");
+        for (std::sregex_iterator it(content.begin(), content.end(), optionRegex); it != std::sregex_iterator(); ++it)
+        {
+            const std::smatch& match = *it;
+
+            ProductOption option;
+            option.name = ToWideString(match[1].str());
+            option.price = std::stod(match[2].str());
+            configuration.options.push_back(std::move(option));
+        }
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+void ClearDynamicOptionControls()
+{
+    for (HWND checkbox : g_optionCheckboxes)
+    {
+        if (checkbox != nullptr)
+        {
+            DestroyWindow(checkbox);
+        }
+    }
+
+    g_optionCheckboxes.clear();
+}
+
+void UpdateTotalPriceLabel()
+{
+    double totalPrice = g_currentConfiguration.basePrice;
+
+    for (size_t index = 0; index < g_optionCheckboxes.size() && index < g_currentConfiguration.options.size(); ++index)
+    {
+        if (SendMessageW(g_optionCheckboxes[index], BM_GETCHECK, 0, 0) == BST_CHECKED)
+        {
+            totalPrice += g_currentConfiguration.options[index].price;
+        }
+    }
+
+    const std::wstring totalText = L"Endpreis: " + FormatEuro(totalPrice);
+    SetWindowTextW(g_hTotalPriceLabel, totalText.c_str());
+}
+
+void RenderProductConfiguration(HWND hWnd)
+{
+    if (g_selectedProductPath.empty())
+    {
+        return;
+    }
+
+    ProductConfiguration configuration;
+    if (!TryLoadProductConfiguration(g_selectedProductPath, configuration))
+    {
+        ClearDynamicOptionControls();
+        g_currentConfiguration = ProductConfiguration{};
+        SetWindowTextW(g_hBasePriceLabel, L"Basispreis: 0,00 €");
+        SetWindowTextW(g_hTotalPriceLabel, L"Endpreis: 0,00 €");
+        MessageBoxW(hWnd, L"Die Produktkonfiguration konnte nicht geladen werden.", L"Fehler", MB_ICONERROR | MB_OK);
+        return;
+    }
+
+    g_currentConfiguration = std::move(configuration);
+    ClearDynamicOptionControls();
+
+    const std::wstring baseText = L"Basispreis: " + FormatEuro(g_currentConfiguration.basePrice);
+    SetWindowTextW(g_hBasePriceLabel, baseText.c_str());
+
+    for (size_t index = 0; index < g_currentConfiguration.options.size(); ++index)
+    {
+        const ProductOption& option = g_currentConfiguration.options[index];
+        const std::wstring checkboxText = option.name + L" (+" + FormatEuro(option.price) + L")";
+
+        HWND checkbox = CreateWindowExW(
+            0,
+            L"BUTTON",
+            checkboxText.c_str(),
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
+            0,
+            0,
+            0,
+            0,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_OPTION_CHECKBOX_BASE + index),
+            hInst,
+            nullptr);
+
+        g_optionCheckboxes.push_back(checkbox);
+    }
+
+    RECT clientRect;
+    GetClientRect(hWnd, &clientRect);
+    UpdateLayout(hWnd, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+    UpdateTotalPriceLabel();
+}
+
+void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
+{
+    UNREFERENCED_PARAMETER(hWnd);
+
+    const int left = 10;
+    const int width = max(180, clientWidth - 20);
+
+    if (g_hProductDropdown != nullptr)
+    {
+        MoveWindow(g_hProductDropdown, left, 35, width, 200, TRUE);
+    }
+
+    if (g_hCalcGroupBox != nullptr)
+    {
+        const int groupTop = 75;
+        const int groupHeight = max(120, clientHeight - groupTop - 10);
+        MoveWindow(g_hCalcGroupBox, left, groupTop, width, groupHeight, TRUE);
+
+        if (g_hBasePriceLabel != nullptr)
+        {
+            MoveWindow(g_hBasePriceLabel, left + 10, groupTop + 20, width - 20, 20, TRUE);
+        }
+
+        int nextTop = groupTop + 45;
+        for (HWND checkbox : g_optionCheckboxes)
+        {
+            MoveWindow(checkbox, left + 10, nextTop, width - 20, 20, TRUE);
+            nextTop += 24;
+        }
+
+        if (g_hTotalPriceLabel != nullptr)
+        {
+            MoveWindow(g_hTotalPriceLabel, left + 10, max(groupTop + 45, nextTop + 10), width - 20, 22, TRUE);
+        }
+    }
 }
 
 void PopulateProductDropdown(HWND hCombo)
@@ -224,72 +452,127 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             nullptr);
 
+        g_hCalcGroupBox = CreateWindowExW(
+            0,
+            L"BUTTON",
+            L"Kalkulation",
+            WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+            10,
+            75,
+            420,
+            240,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_CALC_GROUPBOX),
+            hInst,
+            nullptr);
+
+        g_hBasePriceLabel = CreateWindowExW(
+            0,
+            L"STATIC",
+            L"Basispreis: 0,00 €",
+            WS_CHILD | WS_VISIBLE,
+            20,
+            95,
+            400,
+            20,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_BASE_PRICE_LABEL),
+            hInst,
+            nullptr);
+
+        g_hTotalPriceLabel = CreateWindowExW(
+            0,
+            L"STATIC",
+            L"Endpreis: 0,00 €",
+            WS_CHILD | WS_VISIBLE,
+            20,
+            290,
+            400,
+            20,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_TOTAL_PRICE_LABEL),
+            hInst,
+            nullptr);
+
         if (g_hProductDropdown != nullptr)
         {
             PopulateProductDropdown(g_hProductDropdown);
+            if (!g_selectedProductPath.empty())
+            {
+                RenderProductConfiguration(hWnd);
+            }
         }
         break;
     case WM_SIZE:
-        if (g_hProductDropdown != nullptr)
-        {
-            MoveWindow(g_hProductDropdown, 10, 35, max(180, LOWORD(lParam) - 20), 200, TRUE);
-        }
+        UpdateLayout(hWnd, LOWORD(lParam), HIWORD(lParam));
         break;
     case WM_COMMAND:
-        {
-            const int wmId = LOWORD(wParam);
-            const int wmEvent = HIWORD(wParam);
+    {
+        const int wmId = LOWORD(wParam);
+        const int wmEvent = HIWORD(wParam);
 
-            if (wmId == IDC_PRODUCT_DROPDOWN && wmEvent == CBN_SELCHANGE)
+        if (wmId == IDC_PRODUCT_DROPDOWN && wmEvent == CBN_SELCHANGE)
+        {
+            const int selectedIndex = static_cast<int>(SendMessageW(g_hProductDropdown, CB_GETCURSEL, 0, 0));
+            if (selectedIndex != CB_ERR)
             {
-                const int selectedIndex = static_cast<int>(SendMessageW(g_hProductDropdown, CB_GETCURSEL, 0, 0));
-                if (selectedIndex != CB_ERR)
+                const auto itemData = static_cast<size_t>(SendMessageW(g_hProductDropdown, CB_GETITEMDATA, selectedIndex, 0));
+                if (itemData < g_productFolderPaths.size())
                 {
-                    const auto itemData = static_cast<size_t>(SendMessageW(g_hProductDropdown, CB_GETITEMDATA, selectedIndex, 0));
-                    if (itemData < g_productFolderPaths.size())
-                    {
-                        g_selectedProductPath = g_productFolderPaths[itemData];
-                    }
+                    g_selectedProductPath = g_productFolderPaths[itemData];
+                    RenderProductConfiguration(hWnd);
                 }
-                return 0;
             }
-
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
+            return 0;
         }
-        break;
-    case WM_PAINT:
+
+        if (wmId >= IDC_OPTION_CHECKBOX_BASE && wmId < IDC_OPTION_CHECKBOX_BASE + static_cast<int>(g_optionCheckboxes.size()) && wmEvent == BN_CLICKED)
         {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-
-            SetBkMode(hdc, TRANSPARENT);
-
-            RECT rc;
-            rc.left = 10;
-            rc.top = 10;
-            rc.right = 700;
-            rc.bottom = 30;
-
-            const wchar_t* text = L"Bitte wählen Sie ein zu kalkulierendes Produkt aus.";
-            DrawTextW(hdc, text, -1, &rc, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
-
-            EndPaint(hWnd, &ps);
+            UpdateTotalPriceLabel();
+            return 0;
         }
-        break;
+
+        switch (wmId)
+        {
+        case IDM_ABOUT:
+            DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+            break;
+        case IDM_EXIT:
+            DestroyWindow(hWnd);
+            break;
+        default:
+            return DefWindowProc(hWnd, message, wParam, lParam);
+        }
+    }
+    break;
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        SetBkMode(hdc, TRANSPARENT);
+
+        RECT rc;
+        rc.left = 10;
+        rc.top = 10;
+        rc.right = 700;
+        rc.bottom = 30;
+
+        const wchar_t* text = L"Bitte wählen Sie ein zu kalkulierendes Produkt aus.";
+        DrawTextW(hdc, text, -1, &rc, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
+
+        EndPaint(hWnd, &ps);
+    }
+    break;
     case WM_DESTROY:
+        ClearDynamicOptionControls();
         g_productFolderPaths.clear();
         g_selectedProductPath.clear();
+        g_currentConfiguration = ProductConfiguration{};
         g_hProductDropdown = nullptr;
+        g_hCalcGroupBox = nullptr;
+        g_hBasePriceLabel = nullptr;
+        g_hTotalPriceLabel = nullptr;
         PostQuitMessage(0);
         break;
     default:
