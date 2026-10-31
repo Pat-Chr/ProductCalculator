@@ -7,6 +7,9 @@
 #include <vector>
 #include <windows.h>
 
+bool SaveCurrentProject(HWND hOwner);
+bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner);
+
 struct ProductOption
 {
     std::wstring name;

@@ -3,6 +3,7 @@
 #include "EditProductWindow.h"
 #include "NewProductCreator.h"
 #include "ProductDeletion.h"
+#include "ProjectPersistence.h"
 
 #include <algorithm>
 #include <fstream>
@@ -28,6 +29,7 @@ HWND g_hBasePriceLabel = nullptr;
 HWND g_hQuantityHeaderLabel = nullptr;
 HWND g_hTotalPriceLabel = nullptr;
 HWND g_hShowSummaryButton = nullptr;
+HWND g_hLoadProjectButton = nullptr;
 std::vector<HWND> g_optionLabels;
 std::vector<HWND> g_optionQuantityInputs;
 std::vector<std::wstring> g_productFolderPaths;
@@ -471,6 +473,11 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
     {
         MoveWindow(g_hShowSummaryButton, 20, clientHeight - 56, 160, 28, TRUE);
     }
+
+    if (g_hLoadProjectButton != nullptr)
+    {
+        MoveWindow(g_hLoadProjectButton, 188, clientHeight - 56, 160, 28, TRUE);
+    }
 }
 
 // Füllt das Produkt-Dropdown mit allen verfügbaren Produktdaten-Verzeichnissen.
@@ -527,6 +534,70 @@ void PopulateProductDropdown(HWND hCombo)
     EnableWindow(hCombo, TRUE);
     SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
     g_selectedProductPath = g_productFolderPaths.front();
+}
+
+bool SaveCurrentProject(HWND hOwner)
+{
+    if (g_selectedProductPath.empty())
+    {
+        MessageBoxW(hOwner, L"Bitte wählen Sie zuerst ein Produkt aus.", L"Projekt speichern", MB_OK | MB_ICONINFORMATION);
+        return false;
+    }
+
+    SavedProjectData data;
+    data.productPath = g_selectedProductPath;
+    data.optionQuantities.reserve(g_optionQuantityInputs.size());
+
+    for (size_t index = 0; index < g_optionQuantityInputs.size(); ++index)
+    {
+        data.optionQuantities.push_back(GetOptionQuantity(index));
+    }
+
+    std::wstring savedFilePath;
+    if (!SaveProjectDataWithDialog(hOwner, data, savedFilePath))
+    {
+        return false;
+    }
+
+    MessageBoxW(hOwner, L"Projekt wurde gespeichert.", L"Projekt speichern", MB_OK | MB_ICONINFORMATION);
+    return true;
+}
+
+bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner)
+{
+    if (hMainWindow == nullptr || g_hProductDropdown == nullptr)
+    {
+        return false;
+    }
+
+    SavedProjectData data;
+    std::wstring loadedFilePath;
+    if (!LoadProjectDataWithDialog(hDialogOwner, data, loadedFilePath))
+    {
+        return false;
+    }
+
+    if (!SelectProductByPath(g_hProductDropdown, data.productPath))
+    {
+        MessageBoxW(hDialogOwner, L"Das gespeicherte Produkt wurde nicht gefunden.", L"Projekt laden", MB_OK | MB_ICONERROR);
+        return false;
+    }
+
+    RenderProductConfiguration(hMainWindow);
+
+    for (size_t index = 0; index < g_optionQuantityInputs.size(); ++index)
+    {
+        const int quantity = (index < data.optionQuantities.size()) ? max(0, data.optionQuantities[index]) : 0;
+        if (g_optionQuantityInputs[index] != nullptr)
+        {
+            const std::wstring quantityText = std::to_wstring(quantity);
+            SetWindowTextW(g_optionQuantityInputs[index], quantityText.c_str());
+        }
+    }
+
+    UpdateTotalPriceLabel();
+    MessageBoxW(hDialogOwner, L"Projekt wurde geladen.", L"Projekt laden", MB_OK | MB_ICONINFORMATION);
+    return true;
 }
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -731,6 +802,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             0, 0, 160, 28,
             hWnd, reinterpret_cast<HMENU>(IDC_BTN_SHOW_SUMMARY), hInst, nullptr);
 
+        g_hLoadProjectButton = CreateWindowExW(
+            0, L"BUTTON", L"Projekt laden",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            0, 0, 160, 28,
+            hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_LOAD_PROJECT), hInst, nullptr);
+
         if (g_hProductDropdown != nullptr)
         {
             PopulateProductDropdown(g_hProductDropdown);
@@ -887,6 +964,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return 0;
         }
 
+        if (wmId == IDC_SUMMARY_LOAD_PROJECT)
+        {
+            LoadProjectIntoCalculator(hWnd, hWnd);
+            return 0;
+        }
+
         switch (wmId)
         {
         case IDM_ABOUT:
@@ -934,6 +1017,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hQuantityHeaderLabel = nullptr;
         g_hTotalPriceLabel = nullptr;
         g_hShowSummaryButton = nullptr;
+        g_hLoadProjectButton = nullptr;
         PostQuitMessage(0);
         break;
     }

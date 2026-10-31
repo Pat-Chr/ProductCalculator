@@ -150,12 +150,14 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="ProductCalculator.h" />
+    <ClInclude Include="ProjectPersistence.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EditProductWindow.cpp" />
     <ClCompile Include="NewProductCreator.cpp" />
     <ClCompile Include="ProductCalculator.cpp" />
     <ClCompile Include="ProductDeletion.cpp" />
+    <ClCompile Include="ProjectPersistence.cpp" />
     <ClCompile Include="ProductSummaryWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
