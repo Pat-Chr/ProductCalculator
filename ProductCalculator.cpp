@@ -793,8 +793,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         if (wmId == IDC_CREATE_PRODUCT_BUTTON && wmEvent == BN_CLICKED)
         {
-            const std::filesystem::path newProductPath = CreateNewProductFolderWithDefaults();
-            if (newProductPath.empty())
+            std::filesystem::path newProductPath;
+            const NewProductCreationStatus creationStatus = CreateNewProductFolderWithDefaults(hWnd, newProductPath);
+            if (creationStatus == NewProductCreationStatus::Cancelled)
+            {
+                return 0;
+            }
+
+            if (creationStatus != NewProductCreationStatus::Created || newProductPath.empty())
             {
                 MessageBoxW(hWnd, L"Neues Produkt konnte nicht erstellt werden.", L"Fehler", MB_OK | MB_ICONERROR);
                 return 0;
