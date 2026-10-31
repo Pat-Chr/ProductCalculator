@@ -159,6 +159,9 @@
     <Image Include="ProductCalculator.ico" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ARCHITECTURE.md" />
+    <None Include="produktdaten\beispielprodukt\produkt.json" />
+    <None Include="produktdaten\README_Produkte.md" />
     <None Include="README.md" />
     <None Include="LICENSE.txt" />
   </ItemGroup>

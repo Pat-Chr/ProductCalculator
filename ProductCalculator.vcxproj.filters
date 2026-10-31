@@ -48,5 +48,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+    <None Include="LICENSE.txt" />
+    <None Include="ARCHITECTURE.md" />
+    <None Include="produktdaten\README_Produkte.md" />
+    <None Include="produktdaten\beispielprodukt\produkt.json" />
   </ItemGroup>
 </Project>

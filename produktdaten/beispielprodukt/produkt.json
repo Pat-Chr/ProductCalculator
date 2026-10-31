@@ -1,0 +1,19 @@
+{
+  "produktId": "beispielprodukt",
+  "produktname": "Beispielprodukt",
+  "basispreis": 1000.0,
+  "optionen": [
+    {
+      "name": "Standardausstattung",
+      "preis": 0.0
+    },
+    {
+      "name": "Premium-Paket",
+      "preis": 249.9
+    },
+    {
+      "name": "Express-Fertigung",
+      "preis": 149.5
+    }
+  ]
+}
