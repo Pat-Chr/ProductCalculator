@@ -23,6 +23,8 @@ namespace
 			{
 				wchar_t text[256] = {};
 				SendMessageW(g_hProductDropdown, CB_GETLBTEXT, static_cast<WPARAM>(sel), reinterpret_cast<LPARAM>(text));
+				// Fallback auf den sichtbaren Dropdown-Text, falls der globale Pfad
+				// noch nicht gesetzt ist (z.B. direkt nach Initialisierung).
 				return text;
 			}
 		}
@@ -56,7 +58,6 @@ namespace
 		}
 
 		out << L"\r\nGesamtpreis: " << FormatPrice(total) << L"\r\n";
-		out << L"\r\nHinweis: Text markieren und mit Strg+C kopieren oder Button \"Kopieren\" verwenden.";
 		return out.str();
 	}
 

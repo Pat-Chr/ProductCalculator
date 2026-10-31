@@ -74,6 +74,8 @@ std::filesystem::path FindProductDataDirectory()
     return {};
 }
 
+// Sucht eine Datei rekursiv vom EXE-Verzeichnis nach oben,
+// um dynamische Konfigurationsdateien zu finden.
 std::filesystem::path FindFileInCurrentOrParents(const std::wstring& fileName)
 {
     wchar_t modulePath[MAX_PATH] = {};
@@ -100,6 +102,8 @@ std::filesystem::path FindFileInCurrentOrParents(const std::wstring& fileName)
     return {};
 }
 
+// Konvertiert einen UTF-8 String in einen Unicode-WideString.
+// Fallback auf den lokalen Codepage, wenn UTF-8 nicht funktioniert.
 std::wstring ToWideString(const std::string& text)
 {
     if (text.empty())
@@ -128,6 +132,9 @@ std::wstring ToWideString(const std::string& text)
     return result;
 }
 
+// Lädt die Anwendungs-Einstellungen aus settings.json.
+// Setzt Standardwerte zurück und extrahiert die standardwaehrung aus der JSON-Datei.
+// Gibt true zurück, wenn die Datei erfolgreich gelesen wurde.
 bool TryLoadAppSettings(AppSettings& settings)
 {
     settings = AppSettings{};
@@ -167,6 +174,8 @@ bool TryLoadAppSettings(AppSettings& settings)
     return true;
 }
 
+// Formatiert einen Preis mit zwei Dezimalstellen und fügt die Währung hinzu.
+// Beispiel: "123,45 EUR"
 std::wstring FormatPrice(double value)
 {
     std::wostringstream stream;
@@ -179,8 +188,9 @@ std::wstring FormatPrice(double value)
     return number + L" " + g_appSettings.standardwaehrung;
 }
 
-// Aktuell regex-basiertes Parsing für das bekannte Schema in produkt.json.
-// Bei verschachtelten/optionaleren Strukturen sollte auf einen JSON-Parser umgestellt werden.
+// Lädt die Produktkonfiguration aus produkt.json.
+// Extrahiert basispreis und optionen mittels Regex.
+// Gibt false zurück, wenn die Datei nicht gefunden oder ungültig ist.
 bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductConfiguration& configuration)
 {
     configuration = ProductConfiguration{};
@@ -222,6 +232,8 @@ bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductC
     return true;
 }
 
+// Entfernt alle dynamisch erstellten Option-Controls (Labels und Quantity-Inputs).
+// Wird aufgerufen, wenn die Produktkonfiguration sich ändert.
 void ClearDynamicOptionControls()
 {
     for (HWND label : g_optionLabels)
@@ -240,11 +252,12 @@ void ClearDynamicOptionControls()
         }
     }
 
-
     g_optionLabels.clear();
     g_optionQuantityInputs.clear();
 }
 
+// Berechnet den Endpreis basierend auf Basispreis und gewählten Optionen.
+// Liest die Mengen aus den Quantity-Inputs und multipliziert mit Option-Preisen.
 void UpdateTotalPriceLabel()
 {
     double totalPrice = g_currentConfiguration.basePrice;
@@ -267,6 +280,8 @@ void UpdateTotalPriceLabel()
     SetWindowTextW(g_hTotalPriceLabel, totalText.c_str());
 }
 
+// Rendert die Produktkonfiguration im Fenster.
+// Erstellt Labels und Quantity-Inputs für jede Option und aktualisiert den Endpreis.
 void RenderProductConfiguration(HWND hWnd)
 {
     if (g_selectedProductPath.empty())
@@ -296,7 +311,7 @@ void RenderProductConfiguration(HWND hWnd)
     for (size_t index = 0; index < g_currentConfiguration.options.size(); ++index)
     {
         const ProductOption& option = g_currentConfiguration.options[index];
-        const std::wstring optionText = option.name + L" (+" + FormatPrice(option.price) + L")";
+        const std::wstring optionText = option.name + L"(+" + FormatPrice(option.price) + L")";
 
         const int labelWidth = 150;
         const int labelHeight = 20;
@@ -341,14 +356,14 @@ void RenderProductConfiguration(HWND hWnd)
     UpdateTotalPriceLabel();
 }
 
+// Schließt das Anwendungs-Fenster (aktuell nicht vollständig implementiert).
 void CloseAppButton(HWND hWnd)
 {
-    RECT clientRect;
-    GetClientRect(hWnd, &clientRect);
-    int clientWidth = clientRect.right - clientRect.left;
+    UNREFERENCED_PARAMETER(hWnd);
 }
 
-
+// Passt die Position und Größe aller Fenster-Controls an, wenn sich das Client-Änder.
+// Berechnet Layout basierend auf dem verfügbaren Platz im Fenster.
 void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
 {
     UNREFERENCED_PARAMETER(hWnd);
@@ -419,6 +434,8 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
     }
 }
 
+// Füllt das Produkt-Dropdown mit allen verfügbaren Produktdaten-Verzeichnissen.
+// Sortiert die Ordner alphabetisch und setzt den ersten als Standardauswahl.
 void PopulateProductDropdown(HWND hCombo)
 {
     SendMessageW(hCombo, CB_RESETCONTENT, 0, 0);
@@ -444,9 +461,9 @@ void PopulateProductDropdown(HWND hCombo)
     }
 
     std::sort(productFolders.begin(), productFolders.end(), [](const auto& left, const auto& right)
-        {
-            return left.filename().wstring() < right.filename().wstring();
-        });
+    {
+        return left.filename().wstring() < right.filename().wstring();
+    });
 
     for (const auto& productFolder : productFolders)
     {
@@ -455,6 +472,8 @@ void PopulateProductDropdown(HWND hCombo)
         if (itemIndex >= 0)
         {
             g_productFolderPaths.push_back(productFolder.wstring());
+            // ItemData speichert den Index in g_productFolderPaths, damit später
+            // aus der UI-Auswahl schnell und stabil der echte Ordnerpfad geladen wird.
             SendMessageW(hCombo, CB_SETITEMDATA, static_cast<WPARAM>(itemIndex), static_cast<LPARAM>(g_productFolderPaths.size() - 1));
         }
     }
@@ -505,8 +524,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     return (int) msg.wParam;
 }
 
-
-
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
     WNDCLASSEXW wcex;
@@ -546,9 +563,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
-// Zentraler Message-Dispatcher.
-// Neue UI-Aktionen sollten bevorzugt als WM_COMMAND-Zweig ergänzt werden,
-// damit das Lebenszyklusverhalten (WM_CREATE/WM_SIZE/WM_DESTROY) stabil bleibt.
+// Zentraler Message-Dispatcher für alle Fenster-Ereignisse.
+// Verarbeitet CREATE, SIZE, DESTROY, COMMAND und PAINT Nachrichten.
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -668,8 +684,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         UpdateLayout(hWnd, clientWidth, clientHeight);
 
-
-
         break;
     }
     case WM_COMMAND:
@@ -753,6 +767,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     break;
     case WM_DESTROY:
+    {
         ClearDynamicOptionControls();
         g_productFolderPaths.clear();
         g_selectedProductPath.clear();
@@ -766,6 +781,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hShowSummaryButton = nullptr;
         PostQuitMessage(0);
         break;
+    }
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -791,6 +807,9 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
+// Liest die Menge aus einem Quantity-Input-Feld.
+// Gibt 0 zurück, wenn das Feld leer ist oder eine ungültige Zahl enthält.
+// Negative Werte werden auf 0 begrenzt.
 int GetOptionQuantity(size_t index)
 {
     if (index >= g_optionQuantityInputs.size() || g_optionQuantityInputs[index] == nullptr)
@@ -811,5 +830,3 @@ int GetOptionQuantity(size_t index)
         return 0;
     }
 }
-
-
