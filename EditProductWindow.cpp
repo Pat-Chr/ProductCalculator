@@ -8,6 +8,7 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -51,6 +52,8 @@ namespace
 		HWND optionPriceInput = nullptr;		// Eingabefeld für den Optionspreis
 		HWND addOptionButton = nullptr;		// Button zum Hinzufügen einer neuen Option
 		HWND removeOptionButton = nullptr;	// Button zum Löschen der ausgewählten Option
+		HWND moveOptionUpButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach oben
+		HWND moveOptionDownButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach unten
 		HWND saveButton = nullptr;			// Speichern-Button
 		HWND cancelButton = nullptr;			// Schließen/Abbrechen-Button
 		ProductEditorModel model;			// Aktuelle Produktmodell-Daten
@@ -397,9 +400,27 @@ namespace
 			MoveWindow(listLabel, margin, optionsLabelTop, availableWidth, 20, TRUE);
 		}
 
+		const int listArrowButtonWidth = 34;
+		const int listArrowButtonHeight = 28;
+		const int listArrowGap = 8;
+		const int listArrowColumnWidth = listArrowButtonWidth + listArrowGap;
+		const int listWidth = max(180, availableWidth - listArrowColumnWidth);
 		if (state->optionListControl != nullptr)
 		{
-			MoveWindow(state->optionListControl, margin, listTop, availableWidth, listHeight, TRUE);
+			MoveWindow(state->optionListControl, margin, listTop, listWidth, listHeight, TRUE);
+		}
+
+		const int listArrowLeft = margin + listWidth + listArrowGap;
+		const int listArrowsTotalHeight = (listArrowButtonHeight * 2) + listArrowGap;
+		const int listArrowTop = listTop + max(0, (listHeight - listArrowsTotalHeight) / 2);
+		if (state->moveOptionUpButton != nullptr)
+		{
+			MoveWindow(state->moveOptionUpButton, listArrowLeft, listArrowTop, listArrowButtonWidth, listArrowButtonHeight, TRUE);
+		}
+
+		if (state->moveOptionDownButton != nullptr)
+		{
+			MoveWindow(state->moveOptionDownButton, listArrowLeft, listArrowTop + listArrowButtonHeight + listArrowGap, listArrowButtonWidth, listArrowButtonHeight, TRUE);
 		}
 
 		const int nameLabelWidth = 60;
@@ -443,10 +464,12 @@ namespace
 			MoveWindow(state->addOptionButton, addButtonLeft, optionInputTop, smallButtonWidth, buttonHeight, TRUE);
 		}
 
+		const int removeButtonLeft = addButtonLeft + smallButtonWidth + buttonGap;
 		if (state->removeOptionButton != nullptr)
 		{
-			MoveWindow(state->removeOptionButton, addButtonLeft + smallButtonWidth + buttonGap, optionInputTop, smallButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->removeOptionButton, removeButtonLeft, optionInputTop, smallButtonWidth, buttonHeight, TRUE);
 		}
+
 
 		if (state->saveButton != nullptr)
 		{
@@ -559,6 +582,34 @@ namespace
 
 		state->model.options.erase(state->model.options.begin() + selectedIndex);
 		RefreshOptionList(state);
+	}
+
+	// Verschiebt die aktuell ausgewählte Option innerhalb der Liste.
+	// Richtung: -1 nach oben, +1 nach unten.
+	void MoveSelectedOption(HWND hWnd, EditWindowState* state, int direction)
+	{
+		if (state == nullptr || state->optionListControl == nullptr || direction == 0)
+		{
+			return;
+		}
+
+		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
+		if (selected == LB_ERR)
+		{
+			MessageBoxW(hWnd, L"Bitte zuerst eine Option auswählen.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		const int selectedIndex = static_cast<int>(selected);
+		const int targetIndex = selectedIndex + direction;
+		if (targetIndex < 0 || targetIndex >= static_cast<int>(state->model.options.size()))
+		{
+			return;
+		}
+
+		std::swap(state->model.options[selectedIndex], state->model.options[targetIndex]);
+		RefreshOptionList(state);
+		SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(targetIndex), 0);
 	}
 
 	// Speichert das Produkt und aktualisiert das Hauptfenster.
@@ -759,6 +810,36 @@ namespace
 				appInstance,
 				nullptr);
 
+			// Erstellt den Button zum Verschieben der ausgewählten Option nach oben.
+			state->moveOptionUpButton = CreateWindowExW(
+				0,
+				L"BUTTON",
+				L"↑",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_MOVE_UP),
+				appInstance,
+				nullptr);
+
+			// Erstellt den Button zum Verschieben der ausgewählten Option nach unten.
+			state->moveOptionDownButton = CreateWindowExW(
+				0,
+				L"BUTTON",
+				L"↓",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_MOVE_DOWN),
+				appInstance,
+				nullptr);
+
 			// Erstellt den Speichern-Button (Standardbutton).
 			state->saveButton = CreateWindowExW(
 				0,
@@ -823,6 +904,18 @@ namespace
 			if (LOWORD(wParam) == IDC_EDIT_OPTION_REMOVE)
 			{
 				RemoveSelectedOption(hWnd, state);
+				return 0;
+			}
+
+			if (LOWORD(wParam) == IDC_EDIT_OPTION_MOVE_UP)
+			{
+				MoveSelectedOption(hWnd, state, -1);
+				return 0;
+			}
+
+			if (LOWORD(wParam) == IDC_EDIT_OPTION_MOVE_DOWN)
+			{
+				MoveSelectedOption(hWnd, state, 1);
 				return 0;
 			}
 
