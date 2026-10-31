@@ -3,6 +3,7 @@
 
 #include "framework.h"
 #include "ProductCalculator.h"
+#include "EditProductWindow.h"
 
 #include <algorithm>
 #include <fstream>
@@ -32,6 +33,7 @@ HINSTANCE hInst;                                // Aktuelle Instanz
 WCHAR szTitle[MAX_LOADSTRING];                  // Titelleistentext
 WCHAR szWindowClass[MAX_LOADSTRING];            // Der Klassenname des Hauptfensters.
 HWND g_hProductDropdown = nullptr;
+HWND g_hEditProductButton = nullptr;
 HWND g_hCalcGroupBox = nullptr;
 HWND g_hBasePriceLabel = nullptr;
 HWND g_hTotalPriceLabel = nullptr;
@@ -249,9 +251,18 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
     const int left = 10;
     const int width = max(180, clientWidth - 20);
 
+    const int editButtonWidth = 190;
+    const int rowSpacing = 8;
+    const int dropdownWidth = max(120, width - editButtonWidth - rowSpacing);
+
     if (g_hProductDropdown != nullptr)
     {
-        MoveWindow(g_hProductDropdown, left, 35, width, 200, TRUE);
+        MoveWindow(g_hProductDropdown, left, 35, dropdownWidth, 200, TRUE);
+    }
+
+    if (g_hEditProductButton != nullptr)
+    {
+        MoveWindow(g_hEditProductButton, left + dropdownWidth + rowSpacing, 35, editButtonWidth, 28, TRUE);
     }
 
     if (g_hCalcGroupBox != nullptr)
@@ -452,6 +463,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             nullptr);
 
+        g_hEditProductButton = CreateWindowExW(
+            0,
+            L"BUTTON",
+            L"Produkt bearbeiten",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+            438,
+            35,
+            180,
+            28,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_EDIT_PRODUCT_BUTTON),
+            hInst,
+            nullptr);
+
         g_hCalcGroupBox = CreateWindowExW(
             0,
             L"BUTTON",
@@ -532,6 +557,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return 0;
         }
 
+        if ((wmId == IDM_EDIT_PRODUCT) || (wmId == IDC_EDIT_PRODUCT_BUTTON && wmEvent == BN_CLICKED))
+        {
+            if (g_selectedProductPath.empty())
+            {
+                MessageBoxW(hWnd, L"Bitte wählen Sie zuerst ein Produkt aus.", L"Produkt bearbeiten", MB_OK | MB_ICONINFORMATION);
+                return 0;
+            }
+
+            if (!OpenEditProductWindow(hWnd, g_selectedProductPath))
+            {
+                MessageBoxW(hWnd, L"Das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Fehler", MB_OK | MB_ICONERROR);
+            }
+            return 0;
+        }
+
         switch (wmId)
         {
         case IDM_ABOUT:
@@ -564,12 +604,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         EndPaint(hWnd, &ps);
     }
     break;
+    case WM_PRODUCT_CONFIGURATION_UPDATED:
+        if (!g_selectedProductPath.empty())
+        {
+            RenderProductConfiguration(hWnd);
+        }
+        return 0;
     case WM_DESTROY:
         ClearDynamicOptionControls();
         g_productFolderPaths.clear();
         g_selectedProductPath.clear();
         g_currentConfiguration = ProductConfiguration{};
         g_hProductDropdown = nullptr;
+        g_hEditProductButton = nullptr;
         g_hCalcGroupBox = nullptr;
         g_hBasePriceLabel = nullptr;
         g_hTotalPriceLabel = nullptr;
