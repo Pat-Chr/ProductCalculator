@@ -2,6 +2,7 @@
 #include "ProductCalculator.h"
 #include "EditProductWindow.h"
 #include "NewProductCreator.h"
+#include "ProductDeletion.h"
 
 #include <algorithm>
 #include <fstream>
@@ -21,6 +22,7 @@ WCHAR szWindowClass[MAX_LOADSTRING];
 HWND g_hProductDropdown = nullptr;
 HWND g_hEditProductButton = nullptr;
 HWND g_hCreateProductButton = nullptr;
+HWND g_hDeleteProductButton = nullptr;
 HWND g_hCalcGroupBox = nullptr;
 HWND g_hBasePriceLabel = nullptr;
 HWND g_hQuantityHeaderLabel = nullptr;
@@ -394,10 +396,11 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
     const int left = 10;
     const int width = max(180, clientWidth - 20);
 
-    const int editButtonWidth = 170;
-    const int createButtonWidth = 170;
+    const int editButtonWidth = 150;
+    const int createButtonWidth = 150;
+    const int deleteButtonWidth = 150;
     const int rowSpacing = 8;
-    const int dropdownWidth = max(120, width - editButtonWidth - createButtonWidth - (rowSpacing * 2));
+    const int dropdownWidth = max(120, width - editButtonWidth - createButtonWidth - deleteButtonWidth - (rowSpacing * 3));
 
     if (g_hProductDropdown != nullptr)
     {
@@ -410,9 +413,15 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
         MoveWindow(g_hEditProductButton, editButtonLeft, 35, editButtonWidth, 28, TRUE);
     }
 
+    const int createButtonLeft = editButtonLeft + editButtonWidth + rowSpacing;
     if (g_hCreateProductButton != nullptr)
     {
-        MoveWindow(g_hCreateProductButton, editButtonLeft + editButtonWidth + rowSpacing, 35, createButtonWidth, 28, TRUE);
+        MoveWindow(g_hCreateProductButton, createButtonLeft, 35, createButtonWidth, 28, TRUE);
+    }
+
+    if (g_hDeleteProductButton != nullptr)
+    {
+        MoveWindow(g_hDeleteProductButton, createButtonLeft + createButtonWidth + rowSpacing, 35, deleteButtonWidth, 28, TRUE);
     }
 
     if (g_hCalcGroupBox != nullptr)
@@ -643,6 +652,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             nullptr);
 
+        g_hDeleteProductButton = CreateWindowExW(
+            0,
+            L"BUTTON",
+            L"Produkt löschen",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+            794,
+            35,
+            170,
+            28,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_DELETE_PRODUCT_BUTTON),
+            hInst,
+            nullptr);
+
         g_hCalcGroupBox = CreateWindowExW(
             0,
             L"BUTTON",
@@ -824,6 +847,40 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return 0;
         }
 
+        if (wmId == IDC_DELETE_PRODUCT_BUTTON && wmEvent == BN_CLICKED)
+        {
+            if (g_selectedProductPath.empty())
+            {
+                MessageBoxW(hWnd, L"Bitte wählen Sie zuerst ein Produkt aus.", L"Produkt löschen", MB_OK | MB_ICONINFORMATION);
+                return 0;
+            }
+
+            const ProductDeletionStatus deletionStatus = ConfirmAndDeleteProduct(hWnd, g_selectedProductPath);
+            if (deletionStatus != ProductDeletionStatus::Deleted)
+            {
+                return 0;
+            }
+
+            if (g_hProductDropdown != nullptr)
+            {
+                PopulateProductDropdown(g_hProductDropdown);
+            }
+
+            if (!g_selectedProductPath.empty())
+            {
+                RenderProductConfiguration(hWnd);
+            }
+            else
+            {
+                ClearDynamicOptionControls();
+                g_currentConfiguration = ProductConfiguration{};
+                SetWindowTextW(g_hBasePriceLabel, (L"Basispreis: " + FormatPrice(0.0)).c_str());
+                SetWindowTextW(g_hTotalPriceLabel, (L"Endpreis: " + FormatPrice(0.0)).c_str());
+            }
+
+            return 0;
+        }
+
         if (wmId == IDC_BTN_SHOW_SUMMARY)
         {
             ShowSummaryWindow(hWnd);
@@ -871,6 +928,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hProductDropdown = nullptr;
         g_hEditProductButton = nullptr;
         g_hCreateProductButton = nullptr;
+        g_hDeleteProductButton = nullptr;
         g_hCalcGroupBox = nullptr;
         g_hBasePriceLabel = nullptr;
         g_hQuantityHeaderLabel = nullptr;
