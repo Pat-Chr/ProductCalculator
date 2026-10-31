@@ -143,12 +143,14 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="EditProductWindow.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="ProductCalculator.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="EditProductWindow.cpp" />
     <ClCompile Include="ProductCalculator.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -159,16 +161,24 @@
     <Image Include="ProductCalculator.ico" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ARCHITECTURE.md" />
+    <None Include="produktdaten\beispielprodukt\produkt.json" />
+    <None Include="produktdaten\README_Produkte.md" />
     <None Include="README.md" />
     <None Include="LICENSE.txt" />
+    <None Include="settings.json" />
   </ItemGroup>
   <ItemDefinitionGroup>
     <PostBuildEvent>
       <Command>copy /Y "$(ProjectDir)README.md" "$(OutDir)README.md"
-copy /Y "$(ProjectDir)LICENSE.txt" "$(OutDir)LICENSE.txt"</Command>
+copy /Y "$(ProjectDir)LICENSE.txt" "$(OutDir)LICENSE.txt"
+copy /Y "$(ProjectDir)settings.json" "$(OutDir)settings.json"
+xcopy /E /I /Y "$(ProjectDir)produktdaten" "$(OutDir)produktdaten\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
+
+
