@@ -1,7 +1,3 @@
-// file: E:\Visual Studio Projects\repos\ProductCalculator\ProductCalculator.cpp
-// ProductCalculator.cpp : Definiert den Einstiegspunkt für die Anwendung.
-//
-
 #include "framework.h"
 #include "ProductCalculator.h"
 #include "EditProductWindow.h"
@@ -18,10 +14,9 @@
 
 #define MAX_LOADSTRING 100
 
-// Globale Variablen:
-HINSTANCE hInst;                                // Aktuelle Instanz
-WCHAR szTitle[MAX_LOADSTRING];                  // Titelleistentext
-WCHAR szWindowClass[MAX_LOADSTRING];            // Der Klassenname des Hauptfensters.
+HINSTANCE hInst;
+WCHAR szTitle[MAX_LOADSTRING];
+WCHAR szWindowClass[MAX_LOADSTRING];
 HWND g_hProductDropdown = nullptr;
 HWND g_hEditProductButton = nullptr;
 HWND g_hCalcGroupBox = nullptr;
@@ -36,7 +31,6 @@ std::wstring g_selectedProductPath;
 ProductConfiguration g_currentConfiguration;
 AppSettings g_appSettings;
 
-// Vorwärtsdeklarationen der in diesem Codemodul enthaltenen Funktionen:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -52,6 +46,8 @@ void RenderProductConfiguration(HWND hWnd);
 void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight);
 int GetOptionQuantity(size_t index);
 
+// Sucht den produktdaten-Ordner rekursiv vom EXE-Verzeichnis nach oben,
+// damit zukünftige Paketierungsvarianten ohne feste Pfade funktionieren.
 std::filesystem::path FindProductDataDirectory()
 {
     wchar_t modulePath[MAX_PATH] = {};
@@ -183,6 +179,8 @@ std::wstring FormatPrice(double value)
     return number + L" " + g_appSettings.standardwaehrung;
 }
 
+// Aktuell regex-basiertes Parsing für das bekannte Schema in produkt.json.
+// Bei verschachtelten/optionaleren Strukturen sollte auf einen JSON-Parser umgestellt werden.
 bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductConfiguration& configuration)
 {
     configuration = ProductConfiguration{};
@@ -293,6 +291,8 @@ void RenderProductConfiguration(HWND hWnd)
     const std::wstring baseText = L"Basispreis: " + FormatPrice(g_currentConfiguration.basePrice);
     SetWindowTextW(g_hBasePriceLabel, baseText.c_str());
 
+    // Jede Option bekommt ein eigenes Mengenfeld; Startwert bleibt bewusst 0.
+    // Erweiterungen (z. B. Mindestmengen) sollten hier zentral eingreifen.
     for (size_t index = 0; index < g_currentConfiguration.options.size(); ++index)
     {
         const ProductOption& option = g_currentConfiguration.options[index];
@@ -479,13 +479,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // Globale Zeichenfolgen initialisieren
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_PRODUCTCALCULATOR, szWindowClass, MAX_LOADSTRING);
     TryLoadAppSettings(g_appSettings);
     MyRegisterClass(hInstance);
 
-    // Anwendungsinitialisierung ausführen:
     if (!InitInstance (hInstance, nCmdShow))
     {
         return FALSE;
@@ -495,7 +493,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     MSG msg;
 
-    // Hauptnachrichtenschleife:
     while (GetMessage(&msg, nullptr, 0, 0))
     {
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
@@ -510,11 +507,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 
 
-//
-//  FUNKTION: MyRegisterClass()
-//
-//  ZWECK: Registriert die Fensterklasse.
-//
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
     WNDCLASSEXW wcex;
@@ -536,19 +528,9 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return RegisterClassExW(&wcex);
 }
 
-//
-//   FUNKTION: InitInstance(HINSTANCE, int)
-//
-//   ZWECK: Speichert das Instanzenhandle und erstellt das Hauptfenster.
-//
-//   KOMMENTARE:
-//
-//        In dieser Funktion wird das Instanzenhandle in einer globalen Variablen gespeichert, und das
-//        Hauptprogrammfenster wird erstellt und angezeigt.
-//
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance; // Instanzenhandle in der globalen Variablen speichern
+   hInst = hInstance;
 
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
       CW_USEDEFAULT, 0, 1000, 500, nullptr, nullptr, hInstance, nullptr);
@@ -564,16 +546,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
-//
-//  FUNKTION: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  ZWECK: Verarbeitet Meldungen für das Hauptfenster.
-//
-//  WM_COMMAND  - Verarbeiten des Anwendungsmenüs
-//  WM_PAINT    - Darstellen des Hauptfensters
-//  WM_DESTROY  - Ausgeben einer Beendenmeldung und zurückkehren
-//
-//
+// Zentraler Message-Dispatcher.
+// Neue UI-Aktionen sollten bevorzugt als WM_COMMAND-Zweig ergänzt werden,
+// damit das Lebenszyklusverhalten (WM_CREATE/WM_SIZE/WM_DESTROY) stabil bleibt.
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -682,7 +657,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
 
-        // Schließen-Button und Kreuz oben rechts erstellen
         CloseAppButton(hWnd);
 
         break;
@@ -798,7 +772,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-// Meldungshandler für Infofeld.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);

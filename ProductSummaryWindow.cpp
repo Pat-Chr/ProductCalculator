@@ -30,6 +30,8 @@ namespace
 		return L"(kein Produkt)";
 	}
 
+	// Baut den exportierbaren Text in einem stabilen, zeilenbasierten Format auf.
+	// Wenn später weitere Preiskomponenten hinzukommen, sollten sie hier ergänzt werden.
 	std::wstring BuildSummaryText()
 	{
 		std::wostringstream out;
@@ -135,6 +137,7 @@ namespace
 						{
 							memcpy(ptr, text.c_str(), bytes);
 							GlobalUnlock(hMem);
+							// Nach erfolgreichem SetClipboardData gehört der Speicher dem Clipboard-System.
 							SetClipboardData(CF_UNICODETEXT, hMem);
 						}
 						else

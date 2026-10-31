@@ -209,6 +209,8 @@ namespace
 		return static_cast<bool>(file);
 	}
 
+	// Das Laden ist bewusst schemaorientiert gehalten (produktId, produktname, basispreis, optionen).
+	// Bei zukünftigen JSON-Erweiterungen sollte hier auf robustes, strukturiertes Parsing umgestellt werden.
 	bool TryParseProductModel(const std::string& jsonText, ProductEditorModel& model)
 	{
 		ProductEditorModel parsedModel;
@@ -255,6 +257,8 @@ namespace
 		return true;
 	}
 
+	// Feldnamen und Reihenfolge bleiben absichtlich stabil, damit bestehende Produktdateien
+	// und externe Werkzeuge ohne Anpassung weiter funktionieren.
 	std::string BuildProductJson(const ProductEditorModel& model)
 	{
 		std::wostringstream stream;
@@ -499,6 +503,8 @@ namespace
 
 		if (state->ownerWindow != nullptr)
 		{
+			// Das Hauptfenster wird nach jedem Speichern sofort synchronisiert.
+			// Zusätzliche abgeleitete UI-Ansichten sollten ebenfalls auf diese Nachricht hören.
 			SendMessageW(state->ownerWindow, WM_PRODUCT_CONFIGURATION_UPDATED, 0, 0);
 		}
 
@@ -729,6 +735,7 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 
 	if (g_hEditWindow != nullptr)
 	{
+		// Es bleibt immer nur ein Bearbeitungsfenster offen; erneute Aufrufe fokussieren nur.
 		ShowWindow(g_hEditWindow, SW_RESTORE);
 		SetForegroundWindow(g_hEditWindow);
 		return true;
