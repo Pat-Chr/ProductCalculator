@@ -3,7 +3,6 @@
 
 #include "framework.h"
 #include "ProductCalculator.h"
-#include <windows.h>
 
 #define MAX_LOADSTRING 100
 
@@ -25,8 +24,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
-
-    // TODO: Hier Code einfügen.
 
     // Globale Zeichenfolgen initialisieren
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -129,7 +126,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
-            // Menüauswahl analysieren:
             switch (wmId)
             {
             case IDM_ABOUT:
