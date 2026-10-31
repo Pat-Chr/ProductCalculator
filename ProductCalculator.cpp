@@ -3,6 +3,7 @@
 
 #include "framework.h"
 #include "ProductCalculator.h"
+#include <windows.h>
 
 #define MAX_LOADSTRING 100
 
@@ -146,7 +147,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             PAINTSTRUCT ps;
             BeginPaint(hWnd, &ps);
-            // TODO: Hier beliebigen Zeichnungscode hinzufügen ...
+
+            // Text für "Bitte wählen sie ein Produkt".
+            HDC hdc = GetDC(hWnd);
+            SelectObject(hdc, GetStockObject(NULL_PEN));
+            SelectObject(hdc, GetStockObject(NULL_BRUSH));
+            SetBkMode(hdc, TRANSPARENT);
+
+            RECT rc;
+            rc.left = 10;         // ← Abstand links
+            rc.top = 10;         // ← Höher oben
+            rc.right = 400;       // ← Platz rechts
+            rc.bottom = 20;      // ← Platz unten
+
+            const wchar_t* text = L"Bitte wählen Sie ein zu kalkulierendes Produkt aus.";
+            DrawTextW(hdc, text, -1, &rc, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
+
+            ReleaseDC(hWnd, hdc);
+
             EndPaint(hWnd, &ps);
         }
         break;
