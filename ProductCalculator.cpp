@@ -1,6 +1,7 @@
 #include "framework.h"
 #include "ProductCalculator.h"
 #include "EditProductWindow.h"
+#include "NewProductCreator.h"
 
 #include <algorithm>
 #include <fstream>
@@ -19,6 +20,7 @@ WCHAR szTitle[MAX_LOADSTRING];
 WCHAR szWindowClass[MAX_LOADSTRING];
 HWND g_hProductDropdown = nullptr;
 HWND g_hEditProductButton = nullptr;
+HWND g_hCreateProductButton = nullptr;
 HWND g_hCalcGroupBox = nullptr;
 HWND g_hBasePriceLabel = nullptr;
 HWND g_hQuantityHeaderLabel = nullptr;
@@ -45,6 +47,7 @@ void UpdateTotalPriceLabel();
 void RenderProductConfiguration(HWND hWnd);
 void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight);
 int GetOptionQuantity(size_t index);
+bool SelectProductByPath(HWND hCombo, const std::wstring& productFolderPath);
 
 // Sucht den produktdaten-Ordner rekursiv vom EXE-Verzeichnis nach oben,
 // damit zukünftige Paketierungsvarianten ohne feste Pfade funktionieren.
@@ -72,6 +75,26 @@ std::filesystem::path FindProductDataDirectory()
     }
 
     return {};
+}
+
+bool SelectProductByPath(HWND hCombo, const std::wstring& productFolderPath)
+{
+    if (hCombo == nullptr || productFolderPath.empty())
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < g_productFolderPaths.size(); ++i)
+    {
+        if (g_productFolderPaths[i] == productFolderPath)
+        {
+            SendMessageW(hCombo, CB_SETCURSEL, static_cast<WPARAM>(i), 0);
+            g_selectedProductPath = productFolderPath;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // Sucht eine Datei rekursiv vom EXE-Verzeichnis nach oben,
@@ -371,18 +394,25 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
     const int left = 10;
     const int width = max(180, clientWidth - 20);
 
-    const int editButtonWidth = 190;
+    const int editButtonWidth = 170;
+    const int createButtonWidth = 170;
     const int rowSpacing = 8;
-    const int dropdownWidth = max(120, width - editButtonWidth - rowSpacing);
+    const int dropdownWidth = max(120, width - editButtonWidth - createButtonWidth - (rowSpacing * 2));
 
     if (g_hProductDropdown != nullptr)
     {
         MoveWindow(g_hProductDropdown, left, 35, dropdownWidth, 200, TRUE);
     }
 
+    const int editButtonLeft = left + dropdownWidth + rowSpacing;
     if (g_hEditProductButton != nullptr)
     {
-        MoveWindow(g_hEditProductButton, left + dropdownWidth + rowSpacing, 35, editButtonWidth, 28, TRUE);
+        MoveWindow(g_hEditProductButton, editButtonLeft, 35, editButtonWidth, 28, TRUE);
+    }
+
+    if (g_hCreateProductButton != nullptr)
+    {
+        MoveWindow(g_hCreateProductButton, editButtonLeft + editButtonWidth + rowSpacing, 35, createButtonWidth, 28, TRUE);
     }
 
     if (g_hCalcGroupBox != nullptr)
@@ -592,10 +622,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
             438,
             35,
-            180,
+            170,
             28,
             hWnd,
             reinterpret_cast<HMENU>(IDC_EDIT_PRODUCT_BUTTON),
+            hInst,
+            nullptr);
+
+        g_hCreateProductButton = CreateWindowExW(
+            0,
+            L"BUTTON",
+            L"Neues Produkt",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+            616,
+            35,
+            170,
+            28,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_CREATE_PRODUCT_BUTTON),
             hInst,
             nullptr);
 
@@ -686,6 +730,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         break;
     }
+    case WM_PRODUCT_CONFIGURATION_UPDATED:
+    {
+        const std::wstring selectedPath = g_selectedProductPath;
+        if (g_hProductDropdown != nullptr)
+        {
+            PopulateProductDropdown(g_hProductDropdown);
+            if (!selectedPath.empty())
+            {
+                SelectProductByPath(g_hProductDropdown, selectedPath);
+            }
+        }
+
+        if (!g_selectedProductPath.empty())
+        {
+            RenderProductConfiguration(hWnd);
+        }
+
+        return 0;
+    }
     case WM_COMMAND:
     {
         const int wmId = LOWORD(wParam);
@@ -722,6 +785,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
 
             if (!OpenEditProductWindow(hWnd, g_selectedProductPath))
+            {
+                MessageBoxW(hWnd, L"Das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Fehler", MB_OK | MB_ICONERROR);
+            }
+            return 0;
+        }
+
+        if (wmId == IDC_CREATE_PRODUCT_BUTTON && wmEvent == BN_CLICKED)
+        {
+            std::filesystem::path newProductPath;
+            const NewProductCreationStatus creationStatus = CreateNewProductFolderWithDefaults(hWnd, newProductPath);
+            if (creationStatus == NewProductCreationStatus::Cancelled)
+            {
+                return 0;
+            }
+
+            if (creationStatus != NewProductCreationStatus::Created || newProductPath.empty())
+            {
+                MessageBoxW(hWnd, L"Neues Produkt konnte nicht erstellt werden.", L"Fehler", MB_OK | MB_ICONERROR);
+                return 0;
+            }
+
+            if (g_hProductDropdown != nullptr)
+            {
+                PopulateProductDropdown(g_hProductDropdown);
+                SelectProductByPath(g_hProductDropdown, newProductPath.wstring());
+            }
+
+            if (!g_selectedProductPath.empty())
+            {
+                RenderProductConfiguration(hWnd);
+            }
+
+            if (!OpenEditProductWindow(hWnd, newProductPath.wstring()))
             {
                 MessageBoxW(hWnd, L"Das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Fehler", MB_OK | MB_ICONERROR);
             }
@@ -774,6 +870,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_currentConfiguration = ProductConfiguration{};
         g_hProductDropdown = nullptr;
         g_hEditProductButton = nullptr;
+        g_hCreateProductButton = nullptr;
         g_hCalcGroupBox = nullptr;
         g_hBasePriceLabel = nullptr;
         g_hQuantityHeaderLabel = nullptr;

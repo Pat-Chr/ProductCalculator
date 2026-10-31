@@ -46,6 +46,7 @@ namespace
 		std::wstring productFolderPath;	// Pfad zum Produktdaten-Verzeichnis
 		HWND ownerWindow = nullptr;			// Referenz zum Hauptfenster (für Nachrichten)
 		HWND optionListControl = nullptr;	// ListBox zur Anzeige aller Optionen
+		HWND basePriceInput = nullptr;		// Eingabefeld für den Basispreis
 		HWND optionNameInput = nullptr;		// Eingabefeld für den Optionsnamen
 		HWND optionPriceInput = nullptr;		// Eingabefeld für den Optionspreis
 		HWND addOptionButton = nullptr;		// Button zum Hinzufügen einer neuen Option
@@ -369,11 +370,37 @@ namespace
 		const int buttonHeight = 28;
 
 		const int actionTop = clientHeight - margin - buttonHeight;
-		const int inputTop = actionTop - 40;
-		const int listTop = 34;
-		const int listBottom = inputTop - 10;
+		const int optionInputTop = actionTop - 40;
+		const int baseInputTop = margin;
+		const int optionsLabelTop = baseInputTop + inputHeight + 8;
+		const int listTop = optionsLabelTop + 22;
+		const int listBottom = optionInputTop - 10;
 		const int listHeight = max(100, listBottom - listTop);
 		const int availableWidth = max(260, clientWidth - (margin * 2));
+
+		const int baseLabelWidth = 85;
+		const int baseInputWidth = 120;
+		HWND basePriceLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_BASE_PRICE + 100);
+		if (basePriceLabel != nullptr)
+		{
+			MoveWindow(basePriceLabel, margin, baseInputTop, baseLabelWidth, inputHeight, TRUE);
+		}
+
+		if (state->basePriceInput != nullptr)
+		{
+			MoveWindow(state->basePriceInput, margin + baseLabelWidth + 6, baseInputTop, baseInputWidth, inputHeight, TRUE);
+		}
+
+		HWND listLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_PRODUCT_TEXT);
+		if (listLabel != nullptr)
+		{
+			MoveWindow(listLabel, margin, optionsLabelTop, availableWidth, 20, TRUE);
+		}
+
+		if (state->optionListControl != nullptr)
+		{
+			MoveWindow(state->optionListControl, margin, listTop, availableWidth, listHeight, TRUE);
+		}
 
 		const int nameLabelWidth = 60;
 		const int nameInputLeft = margin + nameLabelWidth + 2;
@@ -386,50 +413,39 @@ namespace
 			priceGap + priceLabelWidth + priceInputGap + priceInputWidth + buttonGap + smallButtonWidth + buttonGap + smallButtonWidth;
 		const int nameWidth = max(130, min(240, availableWidth - (nameInputLeft - margin) - totalRightControlsWidth));
 
-		HWND listLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_PRODUCT_TEXT);
-		if (listLabel != nullptr)
-		{
-			MoveWindow(listLabel, margin, margin, availableWidth, 20, TRUE);
-		}
-
-		if (state->optionListControl != nullptr)
-		{
-			MoveWindow(state->optionListControl, margin, listTop, availableWidth, listHeight, TRUE);
-		}
-
 		HWND nameLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_NAME + 100);
 		if (nameLabel != nullptr)
 		{
-			MoveWindow(nameLabel, margin, inputTop, 60, inputHeight, TRUE);
+			MoveWindow(nameLabel, margin, optionInputTop, 60, inputHeight, TRUE);
 		}
 
 		if (state->optionNameInput != nullptr)
 		{
-			MoveWindow(state->optionNameInput, nameInputLeft, inputTop, nameWidth, inputHeight, TRUE);
+			MoveWindow(state->optionNameInput, nameInputLeft, optionInputTop, nameWidth, inputHeight, TRUE);
 		}
 
 		const int priceLabelLeft = nameInputLeft + nameWidth + priceGap;
 		HWND priceLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_PRICE + 100);
 		if (priceLabel != nullptr)
 		{
-			MoveWindow(priceLabel, priceLabelLeft, inputTop, priceLabelWidth, inputHeight, TRUE);
+			MoveWindow(priceLabel, priceLabelLeft, optionInputTop, priceLabelWidth, inputHeight, TRUE);
 		}
 
 		const int priceInputLeft = priceLabelLeft + priceLabelWidth + priceInputGap;
 		if (state->optionPriceInput != nullptr)
 		{
-			MoveWindow(state->optionPriceInput, priceInputLeft, inputTop, priceInputWidth, inputHeight, TRUE);
+			MoveWindow(state->optionPriceInput, priceInputLeft, optionInputTop, priceInputWidth, inputHeight, TRUE);
 		}
 
 		const int addButtonLeft = priceInputLeft + priceInputWidth + buttonGap;
 		if (state->addOptionButton != nullptr)
 		{
-			MoveWindow(state->addOptionButton, addButtonLeft, inputTop, smallButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->addOptionButton, addButtonLeft, optionInputTop, smallButtonWidth, buttonHeight, TRUE);
 		}
 
 		if (state->removeOptionButton != nullptr)
 		{
-			MoveWindow(state->removeOptionButton, addButtonLeft + smallButtonWidth + buttonGap, inputTop, smallButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->removeOptionButton, addButtonLeft + smallButtonWidth + buttonGap, optionInputTop, smallButtonWidth, buttonHeight, TRUE);
 		}
 
 		if (state->saveButton != nullptr)
@@ -557,6 +573,14 @@ namespace
 			return;
 		}
 
+		double basePrice = 0.0;
+		if (!TryReadPrice(state->basePriceInput, basePrice))
+		{
+			MessageBoxW(hWnd, L"Bitte einen gültigen Basispreis eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		state->model.basePrice = basePrice;
 		const std::string jsonText = BuildProductJson(state->model);
 		if (!TrySaveProductJsonText(state->productFolderPath, jsonText))
 		{
@@ -588,6 +612,35 @@ namespace
 			state = reinterpret_cast<EditWindowState*>(createStruct->lpCreateParams);
 			SetWindowLongPtrW(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
 			const HINSTANCE appInstance = GetModuleHandleW(nullptr);
+
+			// Erstellt das Label und Eingabefeld für den Basispreis.
+			CreateWindowExW(
+				0,
+				L"STATIC",
+				L"Basispreis:",
+				WS_CHILD | WS_VISIBLE,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_BASE_PRICE + 100),
+				appInstance,
+				nullptr);
+
+			state->basePriceInput = CreateWindowExW(
+				WS_EX_CLIENTEDGE,
+				L"EDIT",
+				L"0",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_BASE_PRICE),
+				appInstance,
+				nullptr);
 
 			// Erstellt die ListBox zur Anzeige aller Optionen.
 			CreateWindowExW(
@@ -743,6 +796,11 @@ namespace
 			}
 			else
 			{
+				if (state->basePriceInput != nullptr)
+				{
+					const std::wstring basePriceText = ToWideStringLocal(FormatJsonNumberLocal(state->model.basePrice));
+					SetWindowTextW(state->basePriceInput, basePriceText.c_str());
+				}
 				RefreshOptionList(state);
 			}
 
