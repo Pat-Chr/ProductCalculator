@@ -41,6 +41,7 @@ HWND g_hProductDropdown = nullptr;
 HWND g_hEditProductButton = nullptr;
 HWND g_hCalcGroupBox = nullptr;
 HWND g_hBasePriceLabel = nullptr;
+HWND g_hQuantityHeaderLabel = nullptr;
 HWND g_hTotalPriceLabel = nullptr;
 std::vector<HWND> g_optionCheckboxes;
 std::vector<HWND> g_optionQuantityInputs;
@@ -386,8 +387,14 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
         const int quantityWidth = 70;
         const int quantitySpacing = 8;
         const int checkboxWidth = max(120, width - 20 - quantityWidth - quantitySpacing);
+        const int quantityLeft = left + 10 + checkboxWidth + quantitySpacing;
 
-        int nextTop = groupTop + 45;
+        if (g_hQuantityHeaderLabel != nullptr)
+        {
+            MoveWindow(g_hQuantityHeaderLabel, quantityLeft, groupTop + 45, quantityWidth, 18, TRUE);
+        }
+
+        int nextTop = groupTop + 66;
         for (size_t index = 0; index < g_optionCheckboxes.size(); ++index)
         {
             if (g_optionCheckboxes[index] != nullptr)
@@ -397,7 +404,7 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
 
             if (index < g_optionQuantityInputs.size() && g_optionQuantityInputs[index] != nullptr)
             {
-                MoveWindow(g_optionQuantityInputs[index], left + 10 + checkboxWidth + quantitySpacing, nextTop - 1, quantityWidth, 22, TRUE);
+                MoveWindow(g_optionQuantityInputs[index], quantityLeft, nextTop - 1, quantityWidth, 22, TRUE);
             }
 
             nextTop += 24;
@@ -405,7 +412,7 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
 
         if (g_hTotalPriceLabel != nullptr)
         {
-            MoveWindow(g_hTotalPriceLabel, left + 10, max(groupTop + 45, nextTop + 10), width - 20, 22, TRUE);
+            MoveWindow(g_hTotalPriceLabel, left + 10, max(groupTop + 66, nextTop + 10), width - 20, 22, TRUE);
         }
     }
 }
@@ -630,6 +637,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             nullptr);
 
+        g_hQuantityHeaderLabel = CreateWindowExW(
+            0,
+            L"STATIC",
+            L"Anzahl",
+            WS_CHILD | WS_VISIBLE,
+            20,
+            115,
+            80,
+            18,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_STATIC),
+            hInst,
+            nullptr);
+
         g_hTotalPriceLabel = CreateWindowExW(
             0,
             L"STATIC",
@@ -762,6 +783,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hEditProductButton = nullptr;
         g_hCalcGroupBox = nullptr;
         g_hBasePriceLabel = nullptr;
+        g_hQuantityHeaderLabel = nullptr;
         g_hTotalPriceLabel = nullptr;
         PostQuitMessage(0);
         break;
