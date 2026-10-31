@@ -56,7 +56,6 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
-a
 std::wstring ToWideString(const std::string& text);
 std::filesystem::path FindFileInCurrentOrParents(const std::wstring& fileName);
 bool TryLoadAppSettings(AppSettings& settings);
