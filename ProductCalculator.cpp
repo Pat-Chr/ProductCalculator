@@ -28,6 +28,11 @@ struct ProductConfiguration
     std::vector<ProductOption> options;
 };
 
+struct AppSettings
+{
+    std::wstring standardwaehrung = L"CHF";
+};
+
 // Globale Variablen:
 HINSTANCE hInst;                                // Aktuelle Instanz
 WCHAR szTitle[MAX_LOADSTRING];                  // Titelleistentext
@@ -41,6 +46,7 @@ std::vector<HWND> g_optionCheckboxes;
 std::vector<std::wstring> g_productFolderPaths;
 std::wstring g_selectedProductPath;
 ProductConfiguration g_currentConfiguration;
+AppSettings g_appSettings;
 
 // Vorwärtsdeklarationen der in diesem Codemodul enthaltenen Funktionen:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -49,7 +55,9 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 std::wstring ToWideString(const std::string& text);
-std::wstring FormatEuro(double value);
+std::filesystem::path FindFileInCurrentOrParents(const std::wstring& fileName);
+bool TryLoadAppSettings(AppSettings& settings);
+std::wstring FormatPrice(double value);
 bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductConfiguration& configuration);
 void ClearDynamicOptionControls();
 void UpdateTotalPriceLabel();
@@ -67,6 +75,32 @@ std::filesystem::path FindProductDataDirectory()
         const std::filesystem::path candidatePath = currentPath / L"produktdaten";
         std::error_code ec;
         if (std::filesystem::exists(candidatePath, ec) && std::filesystem::is_directory(candidatePath, ec))
+        {
+            return candidatePath;
+        }
+
+        if (currentPath == currentPath.root_path())
+        {
+            break;
+        }
+
+        currentPath = currentPath.parent_path();
+    }
+
+    return {};
+}
+
+std::filesystem::path FindFileInCurrentOrParents(const std::wstring& fileName)
+{
+    wchar_t modulePath[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
+
+    std::filesystem::path currentPath = std::filesystem::path(modulePath).parent_path();
+    while (!currentPath.empty())
+    {
+        const std::filesystem::path candidatePath = currentPath / fileName;
+        std::error_code ec;
+        if (std::filesystem::exists(candidatePath, ec) && std::filesystem::is_regular_file(candidatePath, ec))
         {
             return candidatePath;
         }
@@ -110,7 +144,46 @@ std::wstring ToWideString(const std::string& text)
     return result;
 }
 
-std::wstring FormatEuro(double value)
+bool TryLoadAppSettings(AppSettings& settings)
+{
+    settings = AppSettings{};
+
+    const std::filesystem::path settingsPath = FindFileInCurrentOrParents(L"settings.json");
+    if (settingsPath.empty())
+    {
+        return false;
+    }
+
+    std::ifstream file(settingsPath, std::ios::binary);
+    if (!file)
+    {
+        return false;
+    }
+
+    const std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+    try
+    {
+        std::smatch currencyMatch;
+        const std::regex currencyRegex("\"standardwaehrung\"\\s*:\\s*\"([^\"]+)\"");
+        if (std::regex_search(content, currencyMatch, currencyRegex))
+        {
+            const std::wstring loadedCurrency = ToWideString(currencyMatch[1].str());
+            if (!loadedCurrency.empty())
+            {
+                settings.standardwaehrung = loadedCurrency;
+            }
+        }
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+std::wstring FormatPrice(double value)
 {
     std::wostringstream stream;
     stream.setf(std::ios::fixed);
@@ -119,7 +192,7 @@ std::wstring FormatEuro(double value)
 
     std::wstring number = stream.str();
     std::replace(number.begin(), number.end(), L'.', L',');
-    return number + L" €";
+    return number + L" " + g_appSettings.standardwaehrung;
 }
 
 bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductConfiguration& configuration)
@@ -188,7 +261,7 @@ void UpdateTotalPriceLabel()
         }
     }
 
-    const std::wstring totalText = L"Endpreis: " + FormatEuro(totalPrice);
+    const std::wstring totalText = L"Endpreis: " + FormatPrice(totalPrice);
     SetWindowTextW(g_hTotalPriceLabel, totalText.c_str());
 }
 
@@ -204,8 +277,8 @@ void RenderProductConfiguration(HWND hWnd)
     {
         ClearDynamicOptionControls();
         g_currentConfiguration = ProductConfiguration{};
-        SetWindowTextW(g_hBasePriceLabel, L"Basispreis: 0,00 €");
-        SetWindowTextW(g_hTotalPriceLabel, L"Endpreis: 0,00 €");
+        SetWindowTextW(g_hBasePriceLabel, (L"Basispreis: " + FormatPrice(0.0)).c_str());
+        SetWindowTextW(g_hTotalPriceLabel, (L"Endpreis: " + FormatPrice(0.0)).c_str());
         MessageBoxW(hWnd, L"Die Produktkonfiguration konnte nicht geladen werden.", L"Fehler", MB_ICONERROR | MB_OK);
         return;
     }
@@ -213,13 +286,13 @@ void RenderProductConfiguration(HWND hWnd)
     g_currentConfiguration = std::move(configuration);
     ClearDynamicOptionControls();
 
-    const std::wstring baseText = L"Basispreis: " + FormatEuro(g_currentConfiguration.basePrice);
+    const std::wstring baseText = L"Basispreis: " + FormatPrice(g_currentConfiguration.basePrice);
     SetWindowTextW(g_hBasePriceLabel, baseText.c_str());
 
     for (size_t index = 0; index < g_currentConfiguration.options.size(); ++index)
     {
         const ProductOption& option = g_currentConfiguration.options[index];
-        const std::wstring checkboxText = option.name + L" (+" + FormatEuro(option.price) + L")";
+        const std::wstring checkboxText = option.name + L" (+" + FormatPrice(option.price) + L")";
 
         HWND checkbox = CreateWindowExW(
             0,
@@ -353,6 +426,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Globale Zeichenfolgen initialisieren
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_PRODUCTCALCULATOR, szWindowClass, MAX_LOADSTRING);
+    TryLoadAppSettings(g_appSettings);
     MyRegisterClass(hInstance);
 
     // Anwendungsinitialisierung ausführen:
@@ -449,6 +523,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_CREATE:
+    {
         g_hProductDropdown = CreateWindowExW(
             0,
             L"COMBOBOX",
@@ -491,10 +566,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             nullptr);
 
+        const std::wstring initialBasePriceText = L"Basispreis: " + FormatPrice(0.0);
+        const std::wstring initialTotalPriceText = L"Endpreis: " + FormatPrice(0.0);
+
         g_hBasePriceLabel = CreateWindowExW(
             0,
             L"STATIC",
-            L"Basispreis: 0,00 €",
+            initialBasePriceText.c_str(),
             WS_CHILD | WS_VISIBLE,
             20,
             95,
@@ -508,7 +586,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hTotalPriceLabel = CreateWindowExW(
             0,
             L"STATIC",
-            L"Endpreis: 0,00 €",
+            initialTotalPriceText.c_str(),
             WS_CHILD | WS_VISIBLE,
             20,
             290,
@@ -528,6 +606,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+    }
     case WM_SIZE:
         UpdateLayout(hWnd, LOWORD(lParam), HIWORD(lParam));
         break;

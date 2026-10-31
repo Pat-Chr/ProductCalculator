@@ -68,5 +68,6 @@
     <None Include="produktdaten\beispielprodukt\produkt.json">
       <Filter>produktdaten\beispielprodukt</Filter>
     </None>
+    <None Include="settings.json" />
   </ItemGroup>
 </Project>
