@@ -3,15 +3,15 @@
 ## 1. Überblick
 
 ### 1.1 Kurze Beschreibung
-ProductCalculator ist eine Windows-Desktopanwendung zur Konfiguration von Standardprodukten und zur Berechnung des Verkaufspreises.
+ProductCalculator ist eine Win32-Desktopanwendung zur Konfiguration von Produkten auf Basis von JSON-Dateien und zur dynamischen Berechnung des Endpreises.
 
 ### 1.2 Zielsetzung
-Das Programm unterstützt dabei, für ein ausgewähltes Standardprodukt schnell eine passende Produktvariante zusammenzustellen und den resultierenden Verkaufspreis auszugeben.
+Die Anwendung soll Produktkonfigurationen einfach auswählbar, bearbeitbar, neu anlegbar und löschbar machen, inklusive sofortiger Preisaktualisierung und exportierbarer Ergebnisübersicht.
 
 ### 1.3 Einsatzgebiet
 - Einfache Angebots- und Kalkulationsszenarien
-- Standardprodukte mit variablen Komponenten
-- Windows-Desktopumgebung (Win32 API)
+- Standardprodukte mit variablen Optionen und Mengen
+- Windows-Desktopumgebung (Win32 API, C++20)
 
 ---
 
@@ -20,190 +20,243 @@ Das Programm unterstützt dabei, für ein ausgewähltes Standardprodukt schnell 
 ### 2.1 Hauptkomponenten
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    ProductCalculator                    │
-│                                                         │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────┐   │
-│  │   UI Layer   │    │   Data Layer │    │  Logic   │   │
-│  │              │    │              │    │   Layer  │   │
-│  │ - Fenster    │    │ - Produkt-   │    │ - Preis- │   │
-│  │ - Menü       │    │   Daten      │    │berechnung│   │
-│  │ - Dialoge    │    │ - Komponenten│    │ - Ausgabe│   │
-│  └──────────────┘    └──────────────┘    └──────────┘   │
-│                                                         │
-│  ┌──────────────┐    ┌──────────────┐                   │
-│  │   Resource   │    │   System     │                   │
-│  │   Layer      │    │   Layer      │                   │
-│  │ - Icons      │    │ - Win32 API  │                   │
-│  │ - Strings    │    │ - GDI        │                   │
-│  └──────────────┘    └──────────────┘                   │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              ProductCalculator                               │
+│                                                                              │
+│  ┌─────────────────────┐      ┌─────────────────────┐      ┌─────────────-┐  │
+│  │       UI Layer      │      │      Data Layer     │      │ Logic Layer  │  │
+│  │ - Hauptfenster      │      │ - settings.json     │      │ - Preisform. │  │
+│  │ - Edit-Fenster      │      │ - produktdaten/*    │      │ - Summen     │  │
+│  │ - Neu-Produkt-Dialog│      │ - produkt.json      │      │ - Validierung│  │
+│  │ - Summary-Fenster   │      │ - UTF-8 JSON I/O    │      │ - UI Sync    │  │
+│  └─────────────────────┘      └─────────────────────┘      └─────────────-┘  │
+│                                                                              │
+│  ┌─────────────────────┐      ┌─────────────────────┐                        │
+│  │   Resource Layer    │      │    System Layer     │                        │
+│  │ - Menüs/Dialoge     │      │ - Win32 API         │                        │
+│  │ - IDs in Resource.h │      │ - GDI / MessageLoop │                        │
+│  │ - Icons/Strings     │      │ - std::filesystem   │                        │
+│  └─────────────────────┘      └─────────────────────┘                        │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 Datenfluss
 
 ```
-Benutzeraktion → UI Layer → Data Layer → Logic Layer → Ausgabe
-     ↓              ↓             ↓               ↓
-   Menü/Dialog   Produktliste    Preisberechnung  MessageBox
+Benutzeraktion
+   ↓
+WndProc / Fenster-Handler
+   ↓
+JSON laden/speichern (produkt.json / settings.json)
+   ↓
+Preisberechnung + UI-Rebuild
+   ↓
+Anzeige (Labels, Mengenfelder, Summary, MessageBox)
 ```
+
+### 2.3 Fensterübergreifende Synchronisation
+- Das Bearbeitungsfenster sendet `WM_PRODUCT_CONFIGURATION_UPDATED` an das Hauptfenster.
+- Das Hauptfenster lädt daraufhin Dropdown und Konfiguration neu.
+- Speichern im Bearbeitungsfenster schließt das Fenster nicht, sondern aktualisiert nur den Zustand.
 
 ---
 
 ## 3. Module und Dateien
 
-### 3.1 Hauptdateien
+### 3.1 Hauptmodule
 
 | Datei | Zweck |
 |-------|-------|
-| `ProductCalculator.cpp` | Einstiegspunkt, Fensterlogik, Nachrichtenschleife |
-| `ProductCalculator.h` | Header für globale Variablen und Typen |
-| `ProductCalculator.rc` | Ressourcen (Menü, Dialoge, Strings) |
-| `Resource.h` | Symbol-IDs für Ressourcen |
+| `ProductCalculator.cpp` | Einstiegspunkt, Hauptfenster, Layout, Dropdown-Befüllung, Preisberechnung |
+| `ProductCalculator.h` | Gemeinsame Datentypen und globale Schnittstellen |
+| `EditProductWindow.cpp/.h` | Eigenes Bearbeitungsfenster für Basispreis/Optionen inkl. JSON-Speicherung |
+| `NewProductCreator.cpp/.h` | Dialog und Erzeugung neuer Produktordner mit Default-`produkt.json` |
+| `ProductDeletion.cpp/.h` | Bestätigung und rekursives Löschen eines Produktordners |
+| `ProductSummaryWindow.cpp` | Eigenes Fenster für Textzusammenfassung und Clipboard-Kopie |
+| `ProductCalculator.rc` | Ressourcen (Menü, Dialoge, Icons, Stringtable) |
+| `Resource.h` | Ressourcen-IDs (Buttons, Dialoge, Controls, Menüs) |
 
-### 3.2 Globale Variablen
+### 3.2 Build- und Laufzeitdateien
+
+| Datei | Zweck |
+|-------|-------|
+| `ProductCalculator.vcxproj` | Projektdefinition (C++20, Quellen, Post-Build-Copy) |
+| `settings.json` | App-Einstellung `standardwaehrung` |
+| `produktdaten/<produkt>/produkt.json` | Persistente Produktdefinition |
+
+### 3.3 Zentrale globale Zustände
 
 ```cpp
-HINSTANCE hInst;                    // Aktuelle Instanz
-WCHAR szTitle[MAX_LOADSTRING];      // Titelleistentext
-WCHAR szWindowClass[MAX_LOADSTRING]; // Fensterklassenname
+HINSTANCE hInst;
+WCHAR szTitle[MAX_LOADSTRING];
+WCHAR szWindowClass[MAX_LOADSTRING];
+HWND g_hProductDropdown;
+std::vector<HWND> g_optionQuantityInputs;
+std::vector<std::wstring> g_productFolderPaths;
+std::wstring g_selectedProductPath;
+ProductConfiguration g_currentConfiguration;
+AppSettings g_appSettings;
 ```
-
-### 3.3 Hauptfunktionen
-
-| Funktion | Zweck |
-|----------|-------|
-| `wWinMain()` | Einstiegspunkt, Initialisierung, Nachrichtenschleife |
-| `MyRegisterClass()` | Registrierung der Fensterklasse |
-| `InitInstance()` | Erstellen und Anzeigen des Hauptfensters |
-| `WndProc()` | Fensterprozedur für Nachrichtenverarbeitung |
-| `About()` | Info-Dialog (Über uns) |
 
 ---
 
 ## 4. Datenmodell
 
-### 4.1 Produktstruktur
+### 4.1 Produktmodell (`produkt.json`)
 
-```
-Produkt
-├── ProduktID (String/Int)
-├── Produktname (String)
-├── Basispreis (Double)
-└── Komponenten[]
-    ├── Komponente1
-    │   ├── Name
-    │   ├── Preis
-    │   └── Optional (Boolean)
-    ├── Komponente2
-    │   ├── Name
-    │   ├── Preis
-    │   └── Optional (Boolean)
-    └── ...
+```json
+{
+  "produktId": "beispielprodukt",
+  "produktname": "Beispielprodukt",
+  "basispreis": 1000.0,
+  "optionen": [
+    { "name": "Standardausstattung", "preis": 0.0 },
+    { "name": "Premium-Paket", "preis": 249.9 }
+  ]
+}
 ```
 
-### 4.2 Preisberechnung
+### 4.2 Interne Strukturen
+- `ProductOption { name, price }`
+- `ProductConfiguration { basePrice, options[] }`
+- `AppSettings { standardwaehrung }`
+
+### 4.3 Preisberechnung
 
 ```
-Verkaufspreis = Basispreis + Σ(Komponentenpreis × Anzahl)
+Endpreis = basispreis + Σ(option.preis × menge)
 ```
+
+Hinweise:
+- Mengenfelder werden pro Option dynamisch erzeugt.
+- Startwert der Mengen ist `0`.
+- Negative Eingaben werden auf `0` begrenzt.
 
 ---
 
 ## 5. Design-Entscheidungen
 
-### 5.1 Warum Win32 API?
-- Keine externen Abhängigkeiten (nur Windows SDK)
-- Geringer Speicherbedarf
-- Einfache Integration in Visual Studio
-- Gute Performance für einfache Anwendungen
+### 5.1 Win32 + STL statt externer Frameworks
+- Keine externen Runtime-Abhängigkeiten
+- Direkter Zugriff auf Message-Loop und Control-Verhalten
+- Gute Portabilität innerhalb klassischer Windows-Desktopumgebungen
 
-### 5.2 Warum keine MVC-Architektur?
-- Projekt ist klein und einfach
-- Trennung von UI und Logik ist nicht notwendig
-- Win32 bietet bereits eine klare Trennung durch Fensterprozedur
+### 5.2 Modulare Aufteilung nach Feature
+- Produktbearbeitung, Neuerstellung, Löschung und Summary sind in separaten Modulen gekapselt.
+- Entspricht dem Ziel, neue Features nicht direkt in `ProductCalculator.cpp` zu vermischen.
 
-### 5.3 Ressourcenmanagement
-- Alle Strings in Resource-Datei (`ProductCalculator.rc`)
-- Icons als separate `.ico`-Dateien
-- Menüstruktur über `Resource.h` definiert
+### 5.3 Dateibasierte Persistenz
+- Produktdaten liegen je Produkt in eigenem Unterordner.
+- `produktdaten` und `settings.json` werden per Post-Build in das Ausgabeverzeichnis kopiert.
+- Pfade werden robust relativ zum EXE-Standort in Parent-Verzeichnissen gesucht.
 
----
-
-## 6. Schnittstellen und Erweiterbarkeit
-
-### 6.1 Öffentliche Schnittstellen
-
-| Schnittstelle | Beschreibung |
-|---------------|--------------|
-| `wWinMain()` | Haupteingangspunkt für die Anwendung |
-| `WndProc()` | Nachrichtenverarbeitung (erweiterbar) |
-
-### 6.2 Erweiterungsmöglichkeiten
-
-- **Neue Produkte hinzufügen**: Datenstruktur in Data Layer erweitern
-- **Neue Komponenten**: Preisberechnung anpassen
-- **Benutzeroberfläche**: Dialoge und Menüs in Resource-Datei
-- **Funktionalität**: Neue Fenster oder Dialoge implementieren
-
-### 6.3 Erweiterbare Funktionen
-
-```cpp
-// Beispiel: Neue Funktion in WndProc hinzufügen
-case WM_COMMAND:
-    switch (LOWORD(wParam))
-    {
-        case IDM_NEW_FEATURE:
-            NeueFunktion();
-            break;
-        // ...
-    }
-    break;
-```
+### 5.4 JSON-Verarbeitung
+- JSON wird ohne Drittbibliothek per String-/Regex-Verarbeitung verarbeitet.
+- UTF-8 ↔ Wide-String Konvertierung ist zentral berücksichtigt.
 
 ---
 
-## 7. Status und Roadmap
+## 6. Hauptabläufe
 
-### 7.1 Aktueller Status
-- ✅ Grundgerüst der Win32-Anwendung vorhanden
-- ✅ Menüstruktur implementiert (Datei → Beenden, Hilfe → Info)
-- ⏳ Produktliste zu implementieren
-- ⏳ Preisberechnung zu implementieren
-- ⏳ UI für Produktauswahl zu implementieren
+### 6.1 Start und Initialisierung
+1. `wWinMain` lädt Ressourcen-Strings.
+2. `settings.json` wird gelesen (`standardwaehrung`).
+3. Hauptfenster wird erstellt.
+4. Produkt-Dropdown wird mit Ordnern unter `produktdaten` gefüllt.
 
-### 7.2 Nächste Schritte
-1. Datenstruktur für Produkte definieren
-2. UI für Produktauswahl erstellen
-3. Preisberechnungslogik implementieren
-4. Testdaten und Beispielprodukte hinzufügen
+### 6.2 Produktauswahl und Kalkulation
+1. Benutzer wählt Produkt im Dropdown.
+2. `produkt.json` wird geladen.
+3. Optionen + Mengenfelder werden neu gerendert.
+4. Bei Mengenänderung wird der Endpreis sofort neu berechnet.
+
+### 6.3 Produkt bearbeiten
+1. Öffnen über Menü oder Button.
+2. Falls Fenster bereits existiert: nur fokussieren/wiederherstellen.
+3. Speichern schreibt `produkt.json`.
+4. Hauptfenster wird via `WM_PRODUCT_CONFIGURATION_UPDATED` synchronisiert.
+5. Bearbeitungsfenster bleibt geöffnet.
+
+### 6.4 Neues Produkt anlegen
+1. Name wird per Dialog abgefragt.
+2. Ordnername wird bereinigt und auf Kollision geprüft.
+3. Ordner + Default-`produkt.json` (`basispreis: 0.0`, `optionen: []`) werden erzeugt.
+4. Dropdown wird aktualisiert und neues Produkt selektiert.
+
+### 6.5 Produkt löschen
+1. Sicherheitsabfrage per `MessageBox`.
+2. Rekursives Löschen des gewählten Produktordners.
+3. Dropdown und Anzeigezustand werden aktualisiert.
+
+### 6.6 Ergebnisübersicht
+- Separate Fensterklasse zeigt Basispreis, Optionen, Mengen, Zeilensummen und Gesamtpreis.
+- Text kann direkt in die Zwischenablage kopiert werden.
 
 ---
 
-## 8. Konventionen
+## 7. Schnittstellen und Erweiterbarkeit
 
-### 8.1 Namenskonventionen
-- **Fensterklasse**: `szWindowClass` (großgeschrieben)
-- **Ressourcen-IDs**: `IDM_` für Menüs, `IDI_` für Icons
-- **Funktionen**: Groß-/Kleinschreibung nach Win32-Standards
+### 7.1 Wichtige öffentliche Funktionen
+| Funktion | Beschreibung |
+|----------|--------------|
+| `OpenEditProductWindow(HWND, const std::wstring&)` | Öffnet/fokussiert Produktbearbeitung |
+| `CreateNewProductFolderWithDefaults(HWND, std::filesystem::path&)` | Legt neues Produkt mit Standarddatei an |
+| `ConfirmAndDeleteProduct(HWND, const std::wstring&)` | Bestätigt und löscht Produktordner |
+| `ShowSummaryWindow(HWND)` | Öffnet Ergebnisübersicht |
+| `FormatPrice(double)` | Preisformatierung inkl. Währung |
 
-### 8.2 Kommentarstil
-```cpp
-// FUNKTION: FunktionName()
-// ZWECK: Kurze Beschreibung
-// KOMMENTARE:
-//   - Detailierte Erklärung
-```
+### 7.2 Erweiterungspunkte
+- Zusätzliche Preisregeln (Rabatte, Staffelpreise, Steuern)
+- Validierungsschemata für `produkt.json`
+- Mehrsprachige UI-Strings über Ressourcen
+- Persistente Sortierung/Filter im Produkt-Dropdown
 
 ---
 
-## 9. Referenzen
+## 8. Status und Roadmap
 
-- [README.md](README.md) – Kurze Übersicht und Installation
+### 8.1 Aktueller Status
+- ✅ Hauptfenster mit Produktauswahl vorhanden
+- ✅ Dynamische Preisberechnung mit Mengenfeldern vorhanden
+- ✅ Produktbearbeitung (Basispreis + Optionen) vorhanden
+- ✅ Neuanlage von Produkten vorhanden
+- ✅ Löschen von Produkten vorhanden
+- ✅ Ergebnisübersicht mit Kopierfunktion vorhanden
+- ✅ Einstellungen (Währung) über `settings.json` vorhanden
+
+### 8.2 Mögliche nächste Schritte
+1. Robuste JSON-Parser-Bibliothek statt Regex einführen
+2. Automatisierte Tests für Parser/Preislogik ergänzen
+3. Fehlerdiagnostik (z. B. detaillierte Dateifehler) erweitern
+4. Optionale Import/Export-Funktionen für Produktkataloge ergänzen
+
+---
+
+## 9. Konventionen
+
+### 9.1 Benennung
+- Ressourcen-IDs: `IDM_`, `IDD_`, `IDC_`, `IDI_`
+- Globale Handles/Zustände: `g_`-Präfix
+- Win32-Einstiegspunkte und WndProc nach WinAPI-Konvention
+
+### 9.2 UI-/Verhaltenskonventionen
+- Produkt-Bearbeitungsfenster bleibt nach Speichern offen.
+- Mengenfelder starten standardmäßig mit `0`.
+
+### 9.3 Technische Konventionen
+- Sprachstandard: C++20
+- Zeichenkodierung: UTF-8 in Dateien, Wide-Strings im UI-Kontext
+
+---
+
+## 10. Referenzen
+
+- [README.md](README.md) – Projektüberblick
+- [produktdaten/README_Produkte.md](produktdaten/README_Produkte.md) – Produktdatenstruktur
 - [LICENSE.txt](LICENSE.txt) – MIT License
 - Windows SDK Dokumentation für Win32 API
 
 ---
 
-*Letzte Änderung: 31.10.2026*
+*Letzte Änderung: 31.10.2026*  
 *Autor: Patrick Christe*
