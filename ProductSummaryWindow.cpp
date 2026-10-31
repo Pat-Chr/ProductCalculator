@@ -32,12 +32,12 @@ namespace
 		return L"(kein Produkt)";
 	}
 
-	// Baut den exportierbaren Text in einem stabilen, zeilenbasierten Format auf.
+	// Baut den exportierbaren Text in einsem stabilen, zeilenbasierten Format auf.
 	// Wenn später weitere Preiskomponenten hinzukommen, sollten sie hier ergänzt werden.
 	std::wstring BuildSummaryText()
 	{
 		std::wostringstream out;
-		out << L"Produkt: " << GetSelectedProductDisplayName() << L"\r\n";
+		out << L"" << GetSelectedProductDisplayName() << L"\r\n";
 		out << L"Basispreis: " << FormatPrice(g_currentConfiguration.basePrice) << L"\r\n";
 		out << L"\r\nOptionen:\r\n";
 
@@ -47,6 +47,11 @@ namespace
 		{
 			const ProductOption& option = g_currentConfiguration.options[i];
 			const int quantity = GetOptionQuantity(i);
+			if (quantity <= 0)
+			{
+				continue;
+			}
+
 			const double lineTotal = static_cast<double>(quantity) * option.price;
 			total += lineTotal;
 
