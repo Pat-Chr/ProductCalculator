@@ -152,6 +152,7 @@
   <ItemGroup>
     <ClCompile Include="EditProductWindow.cpp" />
     <ClCompile Include="ProductCalculator.cpp" />
+    <ClCompile Include="ProductSummaryWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ProductCalculator.rc" />
@@ -180,5 +181,3 @@ xcopy /E /I /Y "$(ProjectDir)produktdaten" "$(OutDir)produktdaten\"</Command>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
-
-
