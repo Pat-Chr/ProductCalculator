@@ -43,6 +43,7 @@ HWND g_hCalcGroupBox = nullptr;
 HWND g_hBasePriceLabel = nullptr;
 HWND g_hTotalPriceLabel = nullptr;
 std::vector<HWND> g_optionCheckboxes;
+std::vector<HWND> g_optionQuantityInputs;
 std::vector<std::wstring> g_productFolderPaths;
 std::wstring g_selectedProductPath;
 ProductConfiguration g_currentConfiguration;
@@ -246,7 +247,16 @@ void ClearDynamicOptionControls()
         }
     }
 
+    for (HWND quantityInput : g_optionQuantityInputs)
+    {
+        if (quantityInput != nullptr)
+        {
+            DestroyWindow(quantityInput);
+        }
+    }
+
     g_optionCheckboxes.clear();
+    g_optionQuantityInputs.clear();
 }
 
 void UpdateTotalPriceLabel()
@@ -257,7 +267,16 @@ void UpdateTotalPriceLabel()
     {
         if (SendMessageW(g_optionCheckboxes[index], BM_GETCHECK, 0, 0) == BST_CHECKED)
         {
-            totalPrice += g_currentConfiguration.options[index].price;
+            int quantity = 0;
+
+            if (index < g_optionQuantityInputs.size() && g_optionQuantityInputs[index] != nullptr)
+            {
+                wchar_t quantityText[32] = {};
+                GetWindowTextW(g_optionQuantityInputs[index], quantityText, 32);
+                quantity = max(0, _wtoi(quantityText));
+            }
+
+            totalPrice += g_currentConfiguration.options[index].price * quantity;
         }
     }
 
@@ -308,7 +327,22 @@ void RenderProductConfiguration(HWND hWnd)
             hInst,
             nullptr);
 
+        HWND quantityInput = CreateWindowExW(
+            0,
+            L"EDIT",
+            L"0",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_LEFT | ES_NUMBER,
+            0,
+            0,
+            0,
+            0,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_OPTION_QUANTITY_BASE + index),
+            hInst,
+            nullptr);
+
         g_optionCheckboxes.push_back(checkbox);
+        g_optionQuantityInputs.push_back(quantityInput);
     }
 
     RECT clientRect;
@@ -349,10 +383,23 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
             MoveWindow(g_hBasePriceLabel, left + 10, groupTop + 20, width - 20, 20, TRUE);
         }
 
+        const int quantityWidth = 70;
+        const int quantitySpacing = 8;
+        const int checkboxWidth = max(120, width - 20 - quantityWidth - quantitySpacing);
+
         int nextTop = groupTop + 45;
-        for (HWND checkbox : g_optionCheckboxes)
+        for (size_t index = 0; index < g_optionCheckboxes.size(); ++index)
         {
-            MoveWindow(checkbox, left + 10, nextTop, width - 20, 20, TRUE);
+            if (g_optionCheckboxes[index] != nullptr)
+            {
+                MoveWindow(g_optionCheckboxes[index], left + 10, nextTop, checkboxWidth, 20, TRUE);
+            }
+
+            if (index < g_optionQuantityInputs.size() && g_optionQuantityInputs[index] != nullptr)
+            {
+                MoveWindow(g_optionQuantityInputs[index], left + 10 + checkboxWidth + quantitySpacing, nextTop - 1, quantityWidth, 22, TRUE);
+            }
+
             nextTop += 24;
         }
 
@@ -632,6 +679,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         if (wmId >= IDC_OPTION_CHECKBOX_BASE && wmId < IDC_OPTION_CHECKBOX_BASE + static_cast<int>(g_optionCheckboxes.size()) && wmEvent == BN_CLICKED)
         {
+            UpdateTotalPriceLabel();
+            return 0;
+        }
+
+        if (wmId >= IDC_OPTION_QUANTITY_BASE && wmId < IDC_OPTION_QUANTITY_BASE + static_cast<int>(g_optionQuantityInputs.size())
+            && (wmEvent == EN_CHANGE || wmEvent == EN_UPDATE || wmEvent == EN_KILLFOCUS))
+        {
+            const size_t optionIndex = static_cast<size_t>(wmId - IDC_OPTION_QUANTITY_BASE);
+            if (optionIndex < g_optionQuantityInputs.size() && optionIndex < g_optionCheckboxes.size()
+                && g_optionQuantityInputs[optionIndex] != nullptr && g_optionCheckboxes[optionIndex] != nullptr)
+            {
+                wchar_t quantityText[32] = {};
+                GetWindowTextW(g_optionQuantityInputs[optionIndex], quantityText, 32);
+                const int quantity = max(0, _wtoi(quantityText));
+                SendMessageW(g_optionCheckboxes[optionIndex], BM_SETCHECK, quantity > 0 ? BST_CHECKED : BST_UNCHECKED, 0);
+            }
+
             UpdateTotalPriceLabel();
             return 0;
         }
