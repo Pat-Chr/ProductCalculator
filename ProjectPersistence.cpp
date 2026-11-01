@@ -89,6 +89,41 @@ namespace
 		return quantities;
 	}
 
+	bool CreateSnapshotForSavedProject(const std::filesystem::path& projectFilePath, const SavedProjectData& sourceData, SavedProjectData& snapshotData)
+	{
+		const std::filesystem::path sourceProductPath(sourceData.productPath);
+		std::error_code ec;
+		if (!std::filesystem::exists(sourceProductPath, ec) || !std::filesystem::is_directory(sourceProductPath, ec))
+		{
+			return false;
+		}
+
+		const std::filesystem::path snapshotDirectory = projectFilePath.parent_path() / SanitizeFileName(projectFilePath.stem().wstring());
+		std::filesystem::remove_all(snapshotDirectory, ec);
+		ec.clear();
+		if (!std::filesystem::create_directories(snapshotDirectory, ec) || ec)
+		{
+			return false;
+		}
+
+		std::wstring sourceFolderName = sourceProductPath.filename().wstring();
+		if (sourceFolderName.empty())
+		{
+			sourceFolderName = L"produkt";
+		}
+
+		const std::filesystem::path snapshotProductPath = snapshotDirectory / SanitizeFileName(sourceFolderName);
+		std::filesystem::copy(sourceProductPath, snapshotProductPath, std::filesystem::copy_options::recursive, ec);
+		if (ec)
+		{
+			return false;
+		}
+
+		snapshotData = sourceData;
+		snapshotData.productPath = snapshotProductPath.wstring();
+		return true;
+	}
+
 	bool SaveProjectDataToFile(const std::filesystem::path& filePath, const SavedProjectData& data)
 	{
 		std::wofstream file(filePath, std::ios::trunc);
@@ -190,7 +225,13 @@ bool SaveProjectDataWithDialog(HWND hOwner, const SavedProjectData& data, std::w
 	}
 
 	const std::filesystem::path outputPath = fileNameBuffer.data();
-	if (!SaveProjectDataToFile(outputPath, data))
+	SavedProjectData snapshotData;
+	if (!CreateSnapshotForSavedProject(outputPath, data, snapshotData))
+	{
+		return false;
+	}
+
+	if (!SaveProjectDataToFile(outputPath, snapshotData))
 	{
 		return false;
 	}

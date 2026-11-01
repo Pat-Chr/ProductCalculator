@@ -579,8 +579,18 @@ bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner)
 
     if (!SelectProductByPath(g_hProductDropdown, data.productPath))
     {
-        MessageBoxW(hDialogOwner, L"Das gespeicherte Produkt wurde nicht gefunden.", L"Projekt laden", MB_OK | MB_ICONERROR);
-        return false;
+        const std::filesystem::path loadedProductPath(data.productPath);
+        const std::filesystem::path productJsonPath = loadedProductPath / L"produkt.json";
+        std::error_code ec;
+        const bool hasSavedSnapshot = std::filesystem::exists(productJsonPath, ec) && std::filesystem::is_regular_file(productJsonPath, ec);
+        if (!hasSavedSnapshot)
+        {
+            MessageBoxW(hDialogOwner, L"Das gespeicherte Produkt wurde nicht gefunden.", L"Projekt laden", MB_OK | MB_ICONERROR);
+            return false;
+        }
+
+        g_selectedProductPath = data.productPath;
+        SendMessageW(g_hProductDropdown, CB_SETCURSEL, static_cast<WPARAM>(-1), 0);
     }
 
     RenderProductConfiguration(hMainWindow);
@@ -596,7 +606,12 @@ bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner)
     }
 
     UpdateTotalPriceLabel();
-    MessageBoxW(hDialogOwner, L"Projekt wurde geladen.", L"Projekt laden", MB_OK | MB_ICONINFORMATION);
+
+    if (!OpenEditProductWindow(hMainWindow, g_selectedProductPath))
+    {
+        MessageBoxW(hDialogOwner, L"Projekt wurde geladen, aber das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Projekt laden", MB_OK | MB_ICONWARNING);
+    }
+
     return true;
 }
 

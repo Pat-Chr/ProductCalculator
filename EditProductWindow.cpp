@@ -1,5 +1,6 @@
 #include "framework.h"
 #include "EditProductWindow.h"
+#include "ProductCalculator.h"
 #include "Resource.h"
 
 #include <filesystem>
@@ -56,6 +57,8 @@ namespace
 		HWND moveOptionDownButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach unten
 		HWND saveButton = nullptr;			// Speichern-Button
 		HWND cancelButton = nullptr;			// Schließen/Abbrechen-Button
+		HWND showSummaryButton = nullptr;	// Öffnet die Zusammenfassung des geladenen Projekts
+		HWND saveProjectButton = nullptr;	// Speichert den aktuellen Projektstand
 		ProductEditorModel model;			// Aktuelle Produktmodell-Daten
 	};
 
@@ -471,14 +474,29 @@ namespace
 		}
 
 
+		const int bottomButtonGap = 8;
+		const int bottomButtonCount = 4;
+		const int bottomRowWidth = (actionButtonWidth * bottomButtonCount) + (bottomButtonGap * (bottomButtonCount - 1));
+		const int bottomStartLeft = max(margin, clientWidth - margin - bottomRowWidth);
+
+		if (state->showSummaryButton != nullptr)
+		{
+			MoveWindow(state->showSummaryButton, bottomStartLeft, actionTop, actionButtonWidth, buttonHeight, TRUE);
+		}
+
+		if (state->saveProjectButton != nullptr)
+		{
+			MoveWindow(state->saveProjectButton, bottomStartLeft + actionButtonWidth + bottomButtonGap, actionTop, actionButtonWidth, buttonHeight, TRUE);
+		}
+
 		if (state->saveButton != nullptr)
 		{
-			MoveWindow(state->saveButton, max(margin, clientWidth - (actionButtonWidth * 2) - (margin * 2)), actionTop, actionButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->saveButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * 2, actionTop, actionButtonWidth, buttonHeight, TRUE);
 		}
 
 		if (state->cancelButton != nullptr)
 		{
-			MoveWindow(state->cancelButton, max(margin, clientWidth - actionButtonWidth - margin), actionTop, actionButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->cancelButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * 3, actionTop, actionButtonWidth, buttonHeight, TRUE);
 		}
 	}
 
@@ -840,11 +858,41 @@ namespace
 				appInstance,
 				nullptr);
 
+			// Erstellt den Button zum Öffnen der Projektzusammenfassung.
+			state->showSummaryButton = CreateWindowExW(
+				0,
+				L"BUTTON",
+				L"Zu Summary",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_PROJECT_TO_SUMMARY),
+				appInstance,
+				nullptr);
+
+			// Erstellt den Button zum Speichern des aktuellen Projektstands.
+			state->saveProjectButton = CreateWindowExW(
+				0,
+				L"BUTTON",
+				L"Projekt speichern",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_PROJECT_SAVE_CHANGES),
+				appInstance,
+				nullptr);
+
 			// Erstellt den Speichern-Button (Standardbutton).
 			state->saveButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Speichern",
+				L"Produkt speichern",
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON,
 				0,
 				0,
@@ -916,6 +964,24 @@ namespace
 			if (LOWORD(wParam) == IDC_EDIT_OPTION_MOVE_DOWN)
 			{
 				MoveSelectedOption(hWnd, state, 1);
+				return 0;
+			}
+
+			if (LOWORD(wParam) == IDC_EDIT_PROJECT_TO_SUMMARY)
+			{
+				if (state != nullptr && state->ownerWindow != nullptr)
+				{
+					ShowSummaryWindow(state->ownerWindow);
+				}
+				return 0;
+			}
+
+			if (LOWORD(wParam) == IDC_EDIT_PROJECT_SAVE_CHANGES)
+			{
+				if (state != nullptr)
+				{
+					SaveCurrentProject(hWnd);
+				}
 				return 0;
 			}
 
