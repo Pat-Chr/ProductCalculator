@@ -47,7 +47,7 @@ Benutzeraktion
    ↓
 WndProc / Fenster-Handler
    ↓
-JSON laden/speichern (produkt.json / settings.json)
+Produkt-JSON / Projektdatei laden/speichern
    ↓
 Preisberechnung + UI-Rebuild
    ↓
@@ -73,6 +73,8 @@ Anzeige (Labels, Mengenfelder, Summary, MessageBox)
 | `NewProductCreator.cpp/.h` | Dialog und Erzeugung neuer Produktordner mit Default-`produkt.json` |
 | `ProductDeletion.cpp/.h` | Bestätigung und rekursives Löschen eines Produktordners |
 | `ProductSummaryWindow.cpp` | Eigenes Fenster für Textzusammenfassung und Clipboard-Kopie |
+| `ProjectPersistence.cpp/.h` | Speichern/Laden von Projektdateien (`.pcproj`) inkl. Mengen und eingebettetem Produkt-JSON |
+| `RestoredProductsCleanup.cpp/.h` | Bereinigung von `saved_projects/restored_products` beim Programmende |
 | `ProductCalculator.rc` | Ressourcen (Menü, Dialoge, Icons, Stringtable) |
 | `Resource.h` | Ressourcen-IDs (Buttons, Dialoge, Controls, Menüs) |
 
@@ -83,6 +85,8 @@ Anzeige (Labels, Mengenfelder, Summary, MessageBox)
 | `ProductCalculator.vcxproj` | Projektdefinition (C++20, Quellen, Post-Build-Copy) |
 | `settings.json` | App-Einstellung `standardwaehrung` |
 | `produktdaten/<produkt>/produkt.json` | Persistente Produktdefinition |
+| `saved_projects/*.pcproj` | Persistente Projektstände (Produktbezug, Mengen, eingebettetes Produkt-JSON) |
+| `saved_projects/restored_products/*` | Laufzeit-Wiederherstellungen aus gespeicherten Projekten (wird beim Beenden geleert) |
 
 ### 3.3 Zentrale globale Zustände
 
@@ -192,6 +196,16 @@ Hinweise:
 - Separate Fensterklasse zeigt Basispreis, Optionen, Mengen, Zeilensummen und Gesamtpreis.
 - Text kann direkt in die Zwischenablage kopiert werden.
 
+### 6.7 Projekt speichern/laden
+1. Speichern erzeugt eine `.pcproj` mit Produktpfad/-name, Mengen und eingebettetem `produkt.json`.
+2. Laden stellt bevorzugt die eingebettete Produktkonfiguration wieder her.
+3. Falls kein eingebettetes Produkt vorhanden ist, erfolgt Fallback über Produktpfad/-name.
+4. Nach dem Laden werden Mengenfelder befüllt und die Kalkulation aktualisiert.
+
+### 6.8 Beenden und Aufräumen
+1. Beim `WM_DESTROY` werden dynamische Controls und Zustände freigegeben.
+2. `saved_projects/restored_products` wird vollständig bereinigt.
+
 ---
 
 ## 7. Schnittstellen und Erweiterbarkeit
@@ -203,6 +217,8 @@ Hinweise:
 | `CreateNewProductFolderWithDefaults(HWND, std::filesystem::path&)` | Legt neues Produkt mit Standarddatei an |
 | `ConfirmAndDeleteProduct(HWND, const std::wstring&)` | Bestätigt und löscht Produktordner |
 | `ShowSummaryWindow(HWND)` | Öffnet Ergebnisübersicht |
+| `SaveCurrentProject(HWND)` | Speichert aktuellen Stand als `.pcproj` |
+| `LoadProjectIntoCalculator(HWND, HWND)` | Lädt einen gespeicherten Projektstand in die Kalkulation |
 | `FormatPrice(double)` | Preisformatierung inkl. Währung |
 
 ### 7.2 Erweiterungspunkte
@@ -220,8 +236,11 @@ Hinweise:
 - ✅ Dynamische Preisberechnung mit Mengenfeldern vorhanden
 - ✅ Produktbearbeitung (Basispreis + Optionen) vorhanden
 - ✅ Neuanlage von Produkten vorhanden
+- ✅ Kopieren von Produkten vorhanden
 - ✅ Löschen von Produkten vorhanden
 - ✅ Ergebnisübersicht mit Kopierfunktion vorhanden
+- ✅ Projekt speichern/laden (`.pcproj`) vorhanden
+- ✅ Wiederhergestellte Laufzeitdaten werden beim Beenden bereinigt
 - ✅ Einstellungen (Währung) über `settings.json` vorhanden
 
 ### 8.2 Mögliche nächste Schritte
@@ -242,6 +261,7 @@ Hinweise:
 ### 9.2 UI-/Verhaltenskonventionen
 - Produkt-Bearbeitungsfenster bleibt nach Speichern offen.
 - Mengenfelder starten standardmäßig mit `0`.
+- Button-Beschriftung für Ergebnisanzeige/Summary ist einheitlich `Kalkulieren`.
 
 ### 9.3 Technische Konventionen
 - Sprachstandard: C++20
@@ -258,5 +278,5 @@ Hinweise:
 
 ---
 
-*Letzte Änderung: 31.10.2026*  
+*Letzte Änderung: 01.11.2026*  
 *Autor: Patrick Christe*
