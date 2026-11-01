@@ -6,6 +6,7 @@
 #include "ProductDeletion.h"
 #include "ProjectPersistence.h"
 #include "EasterEggClickTracker.h"
+#include "RestoredProductsCleanup.h"
 
 #include <algorithm>
 #include <fstream>
@@ -719,7 +720,19 @@ bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner)
         return false;
     }
 
-    if (!SelectProductByPath(g_hProductDropdown, data.productPath))
+    if (!data.productJsonUtf8.empty())
+    {
+        std::wstring restoredProductPath;
+        if (!TryRestoreEmbeddedProduct(data, loadedFilePath, restoredProductPath))
+        {
+            MessageBoxW(hDialogOwner, L"Die gespeicherte Produktkonfiguration konnte nicht wiederhergestellt werden.", L"Projekt laden", MB_OK | MB_ICONERROR);
+            return false;
+        }
+
+        g_selectedProductPath = restoredProductPath;
+        SendMessageW(g_hProductDropdown, CB_SETCURSEL, static_cast<WPARAM>(-1), 0);
+    }
+    else if (!SelectProductByPath(g_hProductDropdown, data.productPath))
     {
         std::wstring fallbackProductName = data.productName;
         if (fallbackProductName.empty())
@@ -729,15 +742,8 @@ bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner)
 
         if (!TrySelectProductByName(g_hProductDropdown, fallbackProductName))
         {
-            std::wstring restoredProductPath;
-            if (!TryRestoreEmbeddedProduct(data, loadedFilePath, restoredProductPath))
-            {
-                MessageBoxW(hDialogOwner, L"Das gespeicherte Produkt wurde nicht gefunden.", L"Projekt laden", MB_OK | MB_ICONERROR);
-                return false;
-            }
-
-            g_selectedProductPath = restoredProductPath;
-            SendMessageW(g_hProductDropdown, CB_SETCURSEL, static_cast<WPARAM>(-1), 0);
+            MessageBoxW(hDialogOwner, L"Das gespeicherte Produkt wurde nicht gefunden.", L"Projekt laden", MB_OK | MB_ICONERROR);
+            return false;
         }
     }
 
@@ -1252,6 +1258,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hShowSummaryButton = nullptr;
         g_hLoadProjectButton = nullptr;
         g_hSaveProjectButton = nullptr;
+        ClearRestoredProductsDirectory();
         PostQuitMessage(0);
         break;
     }
