@@ -51,6 +51,8 @@ namespace
 		HWND basePriceInput = nullptr;		// Eingabefeld für den Basispreis
 		HWND optionNameInput = nullptr;		// Eingabefeld für den Optionsnamen
 		HWND optionPriceInput = nullptr;		// Eingabefeld für den Optionspreis
+		HWND optionQuantityInput = nullptr;	// Eingabefeld für die Menge der ausgewählten Option
+		HWND applyOptionQuantityButton = nullptr;	// Button zum Übernehmen der Menge
 		HWND addOptionButton = nullptr;		// Button zum Hinzufügen einer neuen Option
 		HWND removeOptionButton = nullptr;	// Button zum Löschen der ausgewählten Option
 		HWND moveOptionUpButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach oben
@@ -334,14 +336,36 @@ namespace
 		return ToUtf8StringLocal(stream.str());
 	}
 
-	// Erzeugt die Anzeige-Text für eine Option in der ListBox.
-	// Format: "OptionName (+Preis)" z.B. "Schrauber (+5,00 EUR)"
-	std::wstring FormatOptionDisplayText(const ProductOption& option)
+	// Erzeugt den Anzeige-Text für eine Option in der ListBox.
+	// Format: "OptionName (+Preis) | Menge: X" z.B. "Schrauber (+5,00) | Menge: 2"
+	std::wstring FormatOptionDisplayText(const ProductOption& option, int quantity)
 	{
 		std::wostringstream stream;
 		stream.setf(std::ios::fixed);
-		stream << option.name << L"(+" << std::setprecision(2) << option.price << L")";
+		stream << option.name << L" (+" << std::setprecision(2) << option.price << L") | Menge: " << max(0, quantity);
 		return stream.str();
+	}
+
+	void SyncSelectedOptionQuantityInput(EditWindowState* state)
+	{
+		if (state == nullptr || state->optionListControl == nullptr || state->optionQuantityInput == nullptr)
+		{
+			return;
+		}
+
+		int quantity = 0;
+		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
+		if (selected != LB_ERR)
+		{
+			const size_t selectedIndex = static_cast<size_t>(selected);
+			if (selectedIndex < g_optionQuantityInputs.size())
+			{
+				quantity = GetOptionQuantity(selectedIndex);
+			}
+		}
+
+		const std::wstring quantityText = std::to_wstring(max(0, quantity));
+		SetWindowTextW(state->optionQuantityInput, quantityText.c_str());
 	}
 
 	// Aktualisiert die ListBox mit allen aktuellen Optionen.
@@ -353,12 +377,30 @@ namespace
 			return;
 		}
 
+		const LRESULT previousSelection = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
 		SendMessageW(state->optionListControl, LB_RESETCONTENT, 0, 0);
-		for (const ProductOption& option : state->model.options)
+		for (size_t index = 0; index < state->model.options.size(); ++index)
 		{
-			const std::wstring itemText = FormatOptionDisplayText(option);
+			const int quantity = (index < g_optionQuantityInputs.size()) ? GetOptionQuantity(index) : 0;
+			const std::wstring itemText = FormatOptionDisplayText(state->model.options[index], quantity);
 			SendMessageW(state->optionListControl, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(itemText.c_str()));
 		}
+
+		if (!state->model.options.empty())
+		{
+			size_t selectionIndex = 0;
+			if (previousSelection != LB_ERR)
+			{
+				selectionIndex = static_cast<size_t>(previousSelection);
+			}
+			if (selectionIndex >= state->model.options.size())
+			{
+				selectionIndex = state->model.options.size() - 1;
+			}
+			SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(selectionIndex), 0);
+		}
+
+		SyncSelectedOptionQuantityInput(state);
 	}
 
 	// Passt die Position und Größe aller Fenster-Controls an.
@@ -379,10 +421,11 @@ namespace
 
 		const int actionTop = clientHeight - margin - buttonHeight;
 		const int optionInputTop = actionTop - 40;
+		const int quantityInputTop = optionInputTop - 34;
 		const int baseInputTop = margin;
 		const int optionsLabelTop = baseInputTop + inputHeight + 8;
 		const int listTop = optionsLabelTop + 22;
-		const int listBottom = optionInputTop - 10;
+		const int listBottom = quantityInputTop - 10;
 		const int listHeight = max(100, listBottom - listTop);
 		const int availableWidth = max(260, clientWidth - (margin * 2));
 
@@ -426,6 +469,22 @@ namespace
 		if (state->moveOptionDownButton != nullptr)
 		{
 			MoveWindow(state->moveOptionDownButton, listArrowLeft, listArrowTop + listArrowButtonHeight + listArrowGap, listArrowButtonWidth, listArrowButtonHeight, TRUE);
+		}
+
+		HWND quantityLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_QUANTITY + 100);
+		if (quantityLabel != nullptr)
+		{
+			MoveWindow(quantityLabel, margin, quantityInputTop, 60, inputHeight, TRUE);
+		}
+
+		if (state->optionQuantityInput != nullptr)
+		{
+			MoveWindow(state->optionQuantityInput, margin + 64, quantityInputTop, 90, inputHeight, TRUE);
+		}
+
+		if (state->applyOptionQuantityButton != nullptr)
+		{
+			MoveWindow(state->applyOptionQuantityButton, margin + 164, quantityInputTop, 170, buttonHeight, TRUE);
 		}
 
 		const int nameLabelWidth = 60;
@@ -543,6 +602,74 @@ namespace
 		}
 
 		return true;
+	}
+
+	bool TryReadQuantity(HWND quantityInput, int& quantity)
+	{
+		quantity = 0;
+		if (quantityInput == nullptr)
+		{
+			return false;
+		}
+
+		wchar_t buffer[32] = {};
+		GetWindowTextW(quantityInput, buffer, static_cast<int>(std::size(buffer)));
+		std::wstring text = buffer;
+		if (text.empty())
+		{
+			return false;
+		}
+
+		try
+		{
+			const int value = std::stoi(text);
+			if (value < 0)
+			{
+				return false;
+			}
+			quantity = value;
+		}
+		catch (...)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	void ApplySelectedOptionQuantity(HWND hWnd, EditWindowState* state)
+	{
+		if (state == nullptr || state->optionListControl == nullptr || state->optionQuantityInput == nullptr)
+		{
+			return;
+		}
+
+		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
+		if (selected == LB_ERR)
+		{
+			MessageBoxW(hWnd, L"Bitte zuerst eine Option auswählen.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		int quantity = 0;
+		if (!TryReadQuantity(state->optionQuantityInput, quantity))
+		{
+			MessageBoxW(hWnd, L"Bitte eine gültige Menge (0 oder größer) eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		const size_t selectedIndex = static_cast<size_t>(selected);
+		if (selectedIndex >= g_optionQuantityInputs.size() || g_optionQuantityInputs[selectedIndex] == nullptr)
+		{
+			MessageBoxW(hWnd, L"Die Menge kann für diese Option aktuell nicht gesetzt werden.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		const std::wstring quantityText = std::to_wstring(quantity);
+		SetWindowTextW(g_optionQuantityInputs[selectedIndex], quantityText.c_str());
+		RefreshOptionList(state);
+		SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(selectedIndex), 0);
+		SyncSelectedOptionQuantityInput(state);
 	}
 
 	// Fügt eine neue Option aus den Eingabefeldern hinzu.
@@ -743,6 +870,48 @@ namespace
 				0,
 				hWnd,
 				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_LIST),
+				appInstance,
+				nullptr);
+
+			CreateWindowExW(
+				0,
+				L"STATIC",
+				L"Menge:",
+				WS_CHILD | WS_VISIBLE,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_QUANTITY + 100),
+				appInstance,
+				nullptr);
+
+			state->optionQuantityInput = CreateWindowExW(
+				WS_EX_CLIENTEDGE,
+				L"EDIT",
+				L"0",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT | ES_NUMBER,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_QUANTITY),
+				appInstance,
+				nullptr);
+
+			state->applyOptionQuantityButton = CreateWindowExW(
+				0,
+				L"BUTTON",
+				L"Menge übernehmen",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_SET_QUANTITY),
 				appInstance,
 				nullptr);
 
@@ -957,6 +1126,18 @@ namespace
 			LayoutEditWindowControls(state, LOWORD(lParam), HIWORD(lParam));
 			return 0;
 		case WM_COMMAND:
+			if (LOWORD(wParam) == IDC_EDIT_OPTION_LIST && HIWORD(wParam) == LBN_SELCHANGE)
+			{
+				SyncSelectedOptionQuantityInput(state);
+				return 0;
+			}
+
+			if (LOWORD(wParam) == IDC_EDIT_OPTION_SET_QUANTITY)
+			{
+				ApplySelectedOptionQuantity(hWnd, state);
+				return 0;
+			}
+
 			if (LOWORD(wParam) == IDC_EDIT_OPTION_ADD)
 			{
 				AddOptionFromInput(hWnd, state);
@@ -1059,6 +1240,8 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 			{
 				ShowWindow(state->saveButton, showProductSaveButton ? SW_SHOW : SW_HIDE);
 			}
+
+			RefreshOptionList(state);
 
 			RECT clientRect{};
 			GetClientRect(g_hEditWindow, &clientRect);
