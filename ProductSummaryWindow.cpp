@@ -79,9 +79,15 @@ namespace
 				hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_EDIT), hInst, nullptr);
 
 			CreateWindowExW(
+				0, L"BUTTON", L"Projekt speichern",
+				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+				12, 440, 160, 32,
+				hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_SAVE_PROJECT), hInst, nullptr);
+
+			CreateWindowExW(
 				0, L"BUTTON", L"Kopieren",
 				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-				12, 440, 120, 32,
+				180, 440, 120, 32,
 				hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_COPY), hInst, nullptr);
 
 			CreateWindowExW(
@@ -98,17 +104,34 @@ namespace
 			const int height = HIWORD(lParam);
 
 			HWND hEdit = GetDlgItem(hWnd, IDC_SUMMARY_EDIT);
+			HWND hSave = GetDlgItem(hWnd, IDC_SUMMARY_SAVE_PROJECT);
 			HWND hCopy = GetDlgItem(hWnd, IDC_SUMMARY_COPY);
 			HWND hClose = GetDlgItem(hWnd, IDC_SUMMARY_CLOSE);
 
 			const int margin = 12;
 			const int buttonH = 32;
-			const int buttonW = 120;
+			const int smallButtonW = 120;
+			const int largeButtonW = 160;
+			const int buttonGap = 8;
 			const int editH = height - (margin * 3) - buttonH;
+			const int buttonTop = height - margin - buttonH;
 
-			if (hEdit)  MoveWindow(hEdit, margin, margin, width - (margin * 2), max(120, editH), TRUE);
-			if (hCopy)  MoveWindow(hCopy, margin, height - margin - buttonH, buttonW, buttonH, TRUE);
-			if (hClose) MoveWindow(hClose, width - margin - buttonW, height - margin - buttonH, buttonW, buttonH, TRUE);
+			if (hEdit) MoveWindow(hEdit, margin, margin, width - (margin * 2), max(120, editH), TRUE);
+
+			int nextLeft = margin;
+			if (hSave)
+			{
+				MoveWindow(hSave, nextLeft, buttonTop, largeButtonW, buttonH, TRUE);
+				nextLeft += largeButtonW + buttonGap;
+			}
+			if (hCopy)
+			{
+				MoveWindow(hCopy, nextLeft, buttonTop, smallButtonW, buttonH, TRUE);
+			}
+			if (hClose)
+			{
+				MoveWindow(hClose, width - margin - smallButtonW, buttonTop, smallButtonW, buttonH, TRUE);
+			}
 			return 0;
 		}
 		case WM_COMMAND:
@@ -117,6 +140,12 @@ namespace
 			if (id == IDC_SUMMARY_CLOSE)
 			{
 				DestroyWindow(hWnd);
+				return 0;
+			}
+
+			if (id == IDC_SUMMARY_SAVE_PROJECT)
+			{
+				SaveCurrentProject(hWnd);
 				return 0;
 			}
 
@@ -143,7 +172,6 @@ namespace
 						{
 							memcpy(ptr, text.c_str(), bytes);
 							GlobalUnlock(hMem);
-							// Nach erfolgreichem SetClipboardData gehört der Speicher dem Clipboard-System.
 							SetClipboardData(CF_UNICODETEXT, hMem);
 						}
 						else

@@ -1,5 +1,6 @@
 #include "framework.h"
 #include "EditProductWindow.h"
+#include "ProductCalculator.h"
 #include "Resource.h"
 
 #include <filesystem>
@@ -50,12 +51,18 @@ namespace
 		HWND basePriceInput = nullptr;		// Eingabefeld für den Basispreis
 		HWND optionNameInput = nullptr;		// Eingabefeld für den Optionsnamen
 		HWND optionPriceInput = nullptr;		// Eingabefeld für den Optionspreis
+		HWND optionQuantityInput = nullptr;	// Eingabefeld für die Menge der ausgewählten Option
+		HWND applyOptionQuantityButton = nullptr;	// Button zum Übernehmen der Menge
 		HWND addOptionButton = nullptr;		// Button zum Hinzufügen einer neuen Option
 		HWND removeOptionButton = nullptr;	// Button zum Löschen der ausgewählten Option
 		HWND moveOptionUpButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach oben
 		HWND moveOptionDownButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach unten
 		HWND saveButton = nullptr;			// Speichern-Button
 		HWND cancelButton = nullptr;			// Schließen/Abbrechen-Button
+		HWND showSummaryButton = nullptr;	// Öffnet die Zusammenfassung des geladenen Projekts
+		HWND saveProjectButton = nullptr;	// Speichert den aktuellen Projektstand
+		bool showProjectSaveButton = true;	// Sichtbarkeit des Projekt-Speichern-Buttons
+		bool showProductSaveButton = true;	// Sichtbarkeit des Produkt-Speichern-Buttons
 		ProductEditorModel model;			// Aktuelle Produktmodell-Daten
 	};
 
@@ -329,14 +336,44 @@ namespace
 		return ToUtf8StringLocal(stream.str());
 	}
 
-	// Erzeugt die Anzeige-Text für eine Option in der ListBox.
-	// Format: "OptionName (+Preis)" z.B. "Schrauber (+5,00 EUR)"
-	std::wstring FormatOptionDisplayText(const ProductOption& option)
+	// Erzeugt den Anzeige-Text für eine Option in der ListBox.
+	std::wstring FormatOptionDisplayText(const ProductOption& option, int quantity, bool showQuantity)
 	{
 		std::wostringstream stream;
 		stream.setf(std::ios::fixed);
-		stream << option.name << L"(+" << std::setprecision(2) << option.price << L")";
+		stream << option.name << L" (+" << std::setprecision(2) << option.price << L")";
+		if (showQuantity)
+		{
+			stream << L" | Menge: " << max(0, quantity);
+		}
 		return stream.str();
+	}
+
+	bool ShouldShowQuantityEditor(const EditWindowState* state)
+	{
+		return state != nullptr && !state->showProductSaveButton;
+	}
+
+	void SyncSelectedOptionQuantityInput(EditWindowState* state)
+	{
+		if (state == nullptr || state->optionListControl == nullptr || state->optionQuantityInput == nullptr || !ShouldShowQuantityEditor(state))
+		{
+			return;
+		}
+
+		int quantity = 0;
+		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
+		if (selected != LB_ERR)
+		{
+			const size_t selectedIndex = static_cast<size_t>(selected);
+			if (selectedIndex < g_optionQuantityInputs.size())
+			{
+				quantity = GetOptionQuantity(selectedIndex);
+			}
+		}
+
+		const std::wstring quantityText = std::to_wstring(max(0, quantity));
+		SetWindowTextW(state->optionQuantityInput, quantityText.c_str());
 	}
 
 	// Aktualisiert die ListBox mit allen aktuellen Optionen.
@@ -348,12 +385,31 @@ namespace
 			return;
 		}
 
+		const bool showQuantityEditor = ShouldShowQuantityEditor(state);
+		const LRESULT previousSelection = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
 		SendMessageW(state->optionListControl, LB_RESETCONTENT, 0, 0);
-		for (const ProductOption& option : state->model.options)
+		for (size_t index = 0; index < state->model.options.size(); ++index)
 		{
-			const std::wstring itemText = FormatOptionDisplayText(option);
+			const int quantity = (index < g_optionQuantityInputs.size()) ? GetOptionQuantity(index) : 0;
+			const std::wstring itemText = FormatOptionDisplayText(state->model.options[index], quantity, showQuantityEditor);
 			SendMessageW(state->optionListControl, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(itemText.c_str()));
 		}
+
+		if (!state->model.options.empty())
+		{
+			size_t selectionIndex = 0;
+			if (previousSelection != LB_ERR)
+			{
+				selectionIndex = static_cast<size_t>(previousSelection);
+			}
+			if (selectionIndex >= state->model.options.size())
+			{
+				selectionIndex = state->model.options.size() - 1;
+			}
+			SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(selectionIndex), 0);
+		}
+
+		SyncSelectedOptionQuantityInput(state);
 	}
 
 	// Passt die Position und Größe aller Fenster-Controls an.
@@ -372,12 +428,14 @@ namespace
 		const int actionButtonWidth = 120;
 		const int buttonHeight = 28;
 
+		const bool showQuantityEditor = ShouldShowQuantityEditor(state);
 		const int actionTop = clientHeight - margin - buttonHeight;
 		const int optionInputTop = actionTop - 40;
+		const int quantityInputTop = optionInputTop - 34;
 		const int baseInputTop = margin;
 		const int optionsLabelTop = baseInputTop + inputHeight + 8;
 		const int listTop = optionsLabelTop + 22;
-		const int listBottom = optionInputTop - 10;
+		const int listBottom = (showQuantityEditor ? quantityInputTop : optionInputTop) - 10;
 		const int listHeight = max(100, listBottom - listTop);
 		const int availableWidth = max(260, clientWidth - (margin * 2));
 
@@ -421,6 +479,34 @@ namespace
 		if (state->moveOptionDownButton != nullptr)
 		{
 			MoveWindow(state->moveOptionDownButton, listArrowLeft, listArrowTop + listArrowButtonHeight + listArrowGap, listArrowButtonWidth, listArrowButtonHeight, TRUE);
+		}
+
+		HWND quantityLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_QUANTITY + 100);
+		if (quantityLabel != nullptr)
+		{
+			ShowWindow(quantityLabel, showQuantityEditor ? SW_SHOW : SW_HIDE);
+			if (showQuantityEditor)
+			{
+				MoveWindow(quantityLabel, margin, quantityInputTop, 60, inputHeight, TRUE);
+			}
+		}
+
+		if (state->optionQuantityInput != nullptr)
+		{
+			ShowWindow(state->optionQuantityInput, showQuantityEditor ? SW_SHOW : SW_HIDE);
+			if (showQuantityEditor)
+			{
+				MoveWindow(state->optionQuantityInput, margin + 64, quantityInputTop, 90, inputHeight, TRUE);
+			}
+		}
+
+		if (state->applyOptionQuantityButton != nullptr)
+		{
+			ShowWindow(state->applyOptionQuantityButton, showQuantityEditor ? SW_SHOW : SW_HIDE);
+			if (showQuantityEditor)
+			{
+				MoveWindow(state->applyOptionQuantityButton, margin + 164, quantityInputTop, 170, buttonHeight, TRUE);
+			}
 		}
 
 		const int nameLabelWidth = 60;
@@ -471,14 +557,33 @@ namespace
 		}
 
 
-		if (state->saveButton != nullptr)
+		const int bottomButtonGap = 8;
+		const int bottomButtonCount = 2 + (state->showProjectSaveButton ? 1 : 0) + (state->showProductSaveButton ? 1 : 0);
+		const int bottomRowWidth = (actionButtonWidth * bottomButtonCount) + (bottomButtonGap * (bottomButtonCount - 1));
+		const int bottomStartLeft = max(margin, clientWidth - margin - bottomRowWidth);
+
+		int buttonIndex = 0;
+		if (state->showSummaryButton != nullptr)
 		{
-			MoveWindow(state->saveButton, max(margin, clientWidth - (actionButtonWidth * 2) - (margin * 2)), actionTop, actionButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->showSummaryButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			++buttonIndex;
+		}
+
+		if (state->showProjectSaveButton && state->saveProjectButton != nullptr)
+		{
+			MoveWindow(state->saveProjectButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			++buttonIndex;
+		}
+
+		if (state->showProductSaveButton && state->saveButton != nullptr)
+		{
+			MoveWindow(state->saveButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			++buttonIndex;
 		}
 
 		if (state->cancelButton != nullptr)
 		{
-			MoveWindow(state->cancelButton, max(margin, clientWidth - actionButtonWidth - margin), actionTop, actionButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->cancelButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
 		}
 	}
 
@@ -519,6 +624,74 @@ namespace
 		}
 
 		return true;
+	}
+
+	bool TryReadQuantity(HWND quantityInput, int& quantity)
+	{
+		quantity = 0;
+		if (quantityInput == nullptr)
+		{
+			return false;
+		}
+
+		wchar_t buffer[32] = {};
+		GetWindowTextW(quantityInput, buffer, static_cast<int>(std::size(buffer)));
+		std::wstring text = buffer;
+		if (text.empty())
+		{
+			return false;
+		}
+
+		try
+		{
+			const int value = std::stoi(text);
+			if (value < 0)
+			{
+				return false;
+			}
+			quantity = value;
+		}
+		catch (...)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	void ApplySelectedOptionQuantity(HWND hWnd, EditWindowState* state)
+	{
+		if (state == nullptr || state->optionListControl == nullptr || state->optionQuantityInput == nullptr || !ShouldShowQuantityEditor(state))
+		{
+			return;
+		}
+
+		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
+		if (selected == LB_ERR)
+		{
+			MessageBoxW(hWnd, L"Bitte zuerst eine Option auswählen.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		int quantity = 0;
+		if (!TryReadQuantity(state->optionQuantityInput, quantity))
+		{
+			MessageBoxW(hWnd, L"Bitte eine gültige Menge (0 oder größer) eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		const size_t selectedIndex = static_cast<size_t>(selected);
+		if (selectedIndex >= g_optionQuantityInputs.size() || g_optionQuantityInputs[selectedIndex] == nullptr)
+		{
+			MessageBoxW(hWnd, L"Die Menge kann für diese Option aktuell nicht gesetzt werden.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		const std::wstring quantityText = std::to_wstring(quantity);
+		SetWindowTextW(g_optionQuantityInputs[selectedIndex], quantityText.c_str());
+		RefreshOptionList(state);
+		SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(selectedIndex), 0);
+		SyncSelectedOptionQuantityInput(state);
 	}
 
 	// Fügt eine neue Option aus den Eingabefeldern hinzu.
@@ -722,6 +895,48 @@ namespace
 				appInstance,
 				nullptr);
 
+			CreateWindowExW(
+				0,
+				L"STATIC",
+				L"Menge:",
+				WS_CHILD | WS_VISIBLE,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_QUANTITY + 100),
+				appInstance,
+				nullptr);
+
+			state->optionQuantityInput = CreateWindowExW(
+				WS_EX_CLIENTEDGE,
+				L"EDIT",
+				L"0",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT | ES_NUMBER,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_QUANTITY),
+				appInstance,
+				nullptr);
+
+			state->applyOptionQuantityButton = CreateWindowExW(
+				0,
+				L"BUTTON",
+				L"Menge übernehmen",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_SET_QUANTITY),
+				appInstance,
+				nullptr);
+
 			// Erstellt das Label und Eingabefeld für den Optionsnamen.
 			CreateWindowExW(
 				0,
@@ -840,11 +1055,45 @@ namespace
 				appInstance,
 				nullptr);
 
+			// Erstellt den Button zum Öffnen der Projektzusammenfassung.
+			state->showSummaryButton = CreateWindowExW(
+				0,
+				L"BUTTON",
+				L"Zu Summary",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_PROJECT_TO_SUMMARY),
+				appInstance,
+				nullptr);
+
+			// Erstellt den Button zum Speichern des aktuellen Projektstands.
+			state->saveProjectButton = CreateWindowExW(
+				0,
+				L"BUTTON",
+				L"Projekt speichern",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_PROJECT_SAVE_CHANGES),
+				appInstance,
+				nullptr);
+			if (state->saveProjectButton != nullptr)
+			{
+				ShowWindow(state->saveProjectButton, state->showProjectSaveButton ? SW_SHOW : SW_HIDE);
+			}
+
 			// Erstellt den Speichern-Button (Standardbutton).
 			state->saveButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Speichern",
+				L"Produkt speichern",
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON,
 				0,
 				0,
@@ -854,6 +1103,10 @@ namespace
 				reinterpret_cast<HMENU>(IDC_EDIT_PRODUCT_SAVE),
 				appInstance,
 				nullptr);
+			if (state->saveButton != nullptr)
+			{
+				ShowWindow(state->saveButton, state->showProductSaveButton ? SW_SHOW : SW_HIDE);
+			}
 
 			// Erstellt den Schließen/Abbrechen-Button.
 			state->cancelButton = CreateWindowExW(
@@ -895,6 +1148,18 @@ namespace
 			LayoutEditWindowControls(state, LOWORD(lParam), HIWORD(lParam));
 			return 0;
 		case WM_COMMAND:
+			if (LOWORD(wParam) == IDC_EDIT_OPTION_LIST && HIWORD(wParam) == LBN_SELCHANGE)
+			{
+				SyncSelectedOptionQuantityInput(state);
+				return 0;
+			}
+
+			if (LOWORD(wParam) == IDC_EDIT_OPTION_SET_QUANTITY)
+			{
+				ApplySelectedOptionQuantity(hWnd, state);
+				return 0;
+			}
+
 			if (LOWORD(wParam) == IDC_EDIT_OPTION_ADD)
 			{
 				AddOptionFromInput(hWnd, state);
@@ -919,9 +1184,30 @@ namespace
 				return 0;
 			}
 
+			if (LOWORD(wParam) == IDC_EDIT_PROJECT_TO_SUMMARY)
+			{
+				if (state != nullptr && state->ownerWindow != nullptr)
+				{
+					ShowSummaryWindow(state->ownerWindow);
+				}
+				return 0;
+			}
+
+			if (LOWORD(wParam) == IDC_EDIT_PROJECT_SAVE_CHANGES)
+			{
+				if (state != nullptr)
+				{
+					SaveCurrentProject(hWnd);
+				}
+				return 0;
+			}
+
 			if (LOWORD(wParam) == IDC_EDIT_PRODUCT_SAVE)
 			{
-				SaveAndRefresh(hWnd, state);
+				if (state != nullptr && state->showProductSaveButton)
+				{
+					SaveAndRefresh(hWnd, state);
+				}
 				return 0;
 			}
 
@@ -954,7 +1240,7 @@ namespace
 // Falls das Fenster bereits offen ist, wird es nur fokussiert und wiederhergestellt.
 // Gibt true zurück, wenn das Fenster erfolgreich geöffnet wurde (oder bereits offen war).
 // Gibt false zurück, wenn ownerWindow nullptr oder productFolderPath leer ist.
-bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPath)
+bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPath, bool showProjectSaveButton, bool showProductSaveButton)
 {
 	if (ownerWindow == nullptr || productFolderPath.empty())
 	{
@@ -963,6 +1249,27 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 
 	if (g_hEditWindow != nullptr)
 	{
+		EditWindowState* state = reinterpret_cast<EditWindowState*>(GetWindowLongPtrW(g_hEditWindow, GWLP_USERDATA));
+		if (state != nullptr)
+		{
+			state->showProjectSaveButton = showProjectSaveButton;
+			state->showProductSaveButton = showProductSaveButton;
+			if (state->saveProjectButton != nullptr)
+			{
+				ShowWindow(state->saveProjectButton, showProjectSaveButton ? SW_SHOW : SW_HIDE);
+			}
+			if (state->saveButton != nullptr)
+			{
+				ShowWindow(state->saveButton, showProductSaveButton ? SW_SHOW : SW_HIDE);
+			}
+
+			RefreshOptionList(state);
+
+			RECT clientRect{};
+			GetClientRect(g_hEditWindow, &clientRect);
+			LayoutEditWindowControls(state, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+		}
+
 		// Es bleibt immer nur ein Bearbeitungsfenster offen; erneute Aufrufe fokussieren nur.
 		ShowWindow(g_hEditWindow, SW_RESTORE);
 		SetForegroundWindow(g_hEditWindow);
@@ -984,6 +1291,8 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 	EditWindowState* state = new EditWindowState();
 	state->productFolderPath = productFolderPath;
 	state->ownerWindow = ownerWindow;
+	state->showProjectSaveButton = showProjectSaveButton;
+	state->showProductSaveButton = showProductSaveButton;
 
 	g_hEditWindow = CreateWindowExW(
 		WS_EX_APPWINDOW,

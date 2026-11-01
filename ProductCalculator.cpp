@@ -3,6 +3,7 @@
 #include "EditProductWindow.h"
 #include "NewProductCreator.h"
 #include "ProductDeletion.h"
+#include "ProjectPersistence.h"
 
 #include <algorithm>
 #include <fstream>
@@ -28,6 +29,7 @@ HWND g_hBasePriceLabel = nullptr;
 HWND g_hQuantityHeaderLabel = nullptr;
 HWND g_hTotalPriceLabel = nullptr;
 HWND g_hShowSummaryButton = nullptr;
+HWND g_hLoadProjectButton = nullptr;
 std::vector<HWND> g_optionLabels;
 std::vector<HWND> g_optionQuantityInputs;
 std::vector<std::wstring> g_productFolderPaths;
@@ -50,6 +52,9 @@ void RenderProductConfiguration(HWND hWnd);
 void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight);
 int GetOptionQuantity(size_t index);
 bool SelectProductByPath(HWND hCombo, const std::wstring& productFolderPath);
+bool TrySelectProductByName(HWND hCombo, const std::wstring& productName);
+bool TryLoadProductJsonUtf8(const std::wstring& productFolderPath, std::string& jsonUtf8);
+bool TryRestoreEmbeddedProduct(const SavedProjectData& data, const std::wstring& loadedFilePath, std::wstring& restoredProductPath);
 
 // Sucht den produktdaten-Ordner rekursiv vom EXE-Verzeichnis nach oben,
 // damit zukünftige Paketierungsvarianten ohne feste Pfade funktionieren.
@@ -97,6 +102,112 @@ bool SelectProductByPath(HWND hCombo, const std::wstring& productFolderPath)
     }
 
     return false;
+}
+
+bool TrySelectProductByName(HWND hCombo, const std::wstring& productName)
+{
+    if (hCombo == nullptr || productName.empty())
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < g_productFolderPaths.size(); ++i)
+    {
+        const std::wstring candidateName = std::filesystem::path(g_productFolderPaths[i]).filename().wstring();
+        if (_wcsicmp(candidateName.c_str(), productName.c_str()) == 0)
+        {
+            SendMessageW(hCombo, CB_SETCURSEL, static_cast<WPARAM>(i), 0);
+            g_selectedProductPath = g_productFolderPaths[i];
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::wstring SanitizeFolderName(std::wstring name)
+{
+    const std::wstring invalidChars = L"\\/:*?\"<>|";
+    for (wchar_t& ch : name)
+    {
+        if (invalidChars.find(ch) != std::wstring::npos)
+        {
+            ch = L'_';
+        }
+    }
+
+    if (name.empty())
+    {
+        name = L"produkt";
+    }
+
+    return name;
+}
+
+bool TryLoadProductJsonUtf8(const std::wstring& productFolderPath, std::string& jsonUtf8)
+{
+    jsonUtf8.clear();
+    if (productFolderPath.empty())
+    {
+        return false;
+    }
+
+    const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"produkt.json";
+    std::ifstream file(configPath, std::ios::binary);
+    if (!file)
+    {
+        return false;
+    }
+
+    jsonUtf8.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    return true;
+}
+
+bool TryRestoreEmbeddedProduct(const SavedProjectData& data, const std::wstring& loadedFilePath, std::wstring& restoredProductPath)
+{
+    restoredProductPath.clear();
+    if (data.productJsonUtf8.empty())
+    {
+        return false;
+    }
+
+    const std::filesystem::path savedProjectsDirectory = EnsureSavedProjectsDirectory();
+    const std::filesystem::path restoredRoot = savedProjectsDirectory / L"restored_products";
+    std::error_code ec;
+    std::filesystem::create_directories(restoredRoot, ec);
+    if (ec)
+    {
+        return false;
+    }
+
+    std::wstring baseName = data.productName;
+    if (baseName.empty())
+    {
+        baseName = std::filesystem::path(loadedFilePath).stem().wstring();
+    }
+
+    const std::filesystem::path restoredFolderPath = restoredRoot / SanitizeFolderName(baseName);
+    std::filesystem::create_directories(restoredFolderPath, ec);
+    if (ec)
+    {
+        return false;
+    }
+
+    const std::filesystem::path configPath = restoredFolderPath / L"produkt.json";
+    std::ofstream file(configPath, std::ios::binary | std::ios::trunc);
+    if (!file)
+    {
+        return false;
+    }
+
+    file.write(data.productJsonUtf8.data(), static_cast<std::streamsize>(data.productJsonUtf8.size()));
+    if (!file)
+    {
+        return false;
+    }
+
+    restoredProductPath = restoredFolderPath.wstring();
+    return true;
 }
 
 // Sucht eine Datei rekursiv vom EXE-Verzeichnis nach oben,
@@ -471,6 +582,11 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
     {
         MoveWindow(g_hShowSummaryButton, 20, clientHeight - 56, 160, 28, TRUE);
     }
+
+    if (g_hLoadProjectButton != nullptr)
+    {
+        MoveWindow(g_hLoadProjectButton, 188, clientHeight - 56, 160, 28, TRUE);
+    }
 }
 
 // Füllt das Produkt-Dropdown mit allen verfügbaren Produktdaten-Verzeichnissen.
@@ -527,6 +643,97 @@ void PopulateProductDropdown(HWND hCombo)
     EnableWindow(hCombo, TRUE);
     SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
     g_selectedProductPath = g_productFolderPaths.front();
+}
+
+bool SaveCurrentProject(HWND hOwner)
+{
+    if (g_selectedProductPath.empty())
+    {
+        MessageBoxW(hOwner, L"Bitte wählen Sie zuerst ein Produkt aus.", L"Projekt speichern", MB_OK | MB_ICONINFORMATION);
+        return false;
+    }
+
+    SavedProjectData data;
+    data.productPath = g_selectedProductPath;
+    data.productName = std::filesystem::path(g_selectedProductPath).filename().wstring();
+    if (!TryLoadProductJsonUtf8(g_selectedProductPath, data.productJsonUtf8))
+    {
+        MessageBoxW(hOwner, L"Produktdaten konnten nicht gespeichert werden.", L"Projekt speichern", MB_OK | MB_ICONERROR);
+        return false;
+    }
+
+    data.optionQuantities.reserve(g_optionQuantityInputs.size());
+    for (size_t index = 0; index < g_optionQuantityInputs.size(); ++index)
+    {
+        data.optionQuantities.push_back(GetOptionQuantity(index));
+    }
+
+    std::wstring savedFilePath;
+    if (!SaveProjectDataWithDialog(hOwner, data, savedFilePath))
+    {
+        return false;
+    }
+
+    MessageBoxW(hOwner, L"Projekt wurde gespeichert.", L"Projekt speichern", MB_OK | MB_ICONINFORMATION);
+    return true;
+}
+
+bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner)
+{
+    if (hMainWindow == nullptr || g_hProductDropdown == nullptr)
+    {
+        return false;
+    }
+
+    SavedProjectData data;
+    std::wstring loadedFilePath;
+    if (!LoadProjectDataWithDialog(hDialogOwner, data, loadedFilePath))
+    {
+        return false;
+    }
+
+    if (!SelectProductByPath(g_hProductDropdown, data.productPath))
+    {
+        std::wstring fallbackProductName = data.productName;
+        if (fallbackProductName.empty())
+        {
+            fallbackProductName = std::filesystem::path(data.productPath).filename().wstring();
+        }
+
+        if (!TrySelectProductByName(g_hProductDropdown, fallbackProductName))
+        {
+            std::wstring restoredProductPath;
+            if (!TryRestoreEmbeddedProduct(data, loadedFilePath, restoredProductPath))
+            {
+                MessageBoxW(hDialogOwner, L"Das gespeicherte Produkt wurde nicht gefunden.", L"Projekt laden", MB_OK | MB_ICONERROR);
+                return false;
+            }
+
+            g_selectedProductPath = restoredProductPath;
+            SendMessageW(g_hProductDropdown, CB_SETCURSEL, static_cast<WPARAM>(-1), 0);
+        }
+    }
+
+    RenderProductConfiguration(hMainWindow);
+
+    for (size_t index = 0; index < g_optionQuantityInputs.size(); ++index)
+    {
+        const int quantity = (index < data.optionQuantities.size()) ? max(0, data.optionQuantities[index]) : 0;
+        if (g_optionQuantityInputs[index] != nullptr)
+        {
+            const std::wstring quantityText = std::to_wstring(quantity);
+            SetWindowTextW(g_optionQuantityInputs[index], quantityText.c_str());
+        }
+    }
+
+    UpdateTotalPriceLabel();
+
+    if (!OpenEditProductWindow(hMainWindow, g_selectedProductPath, true, false))
+    {
+        MessageBoxW(hDialogOwner, L"Projekt wurde geladen, aber das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Projekt laden", MB_OK | MB_ICONWARNING);
+    }
+
+    return true;
 }
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -731,6 +938,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             0, 0, 160, 28,
             hWnd, reinterpret_cast<HMENU>(IDC_BTN_SHOW_SUMMARY), hInst, nullptr);
 
+        g_hLoadProjectButton = CreateWindowExW(
+            0, L"BUTTON", L"Projekt laden",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            0, 0, 160, 28,
+            hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_LOAD_PROJECT), hInst, nullptr);
+
         if (g_hProductDropdown != nullptr)
         {
             PopulateProductDropdown(g_hProductDropdown);
@@ -887,6 +1100,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return 0;
         }
 
+        if (wmId == IDC_SUMMARY_LOAD_PROJECT)
+        {
+            LoadProjectIntoCalculator(hWnd, hWnd);
+            return 0;
+        }
+
         switch (wmId)
         {
         case IDM_ABOUT:
@@ -934,6 +1153,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hQuantityHeaderLabel = nullptr;
         g_hTotalPriceLabel = nullptr;
         g_hShowSummaryButton = nullptr;
+        g_hLoadProjectButton = nullptr;
         PostQuitMessage(0);
         break;
     }
