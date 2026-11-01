@@ -2,6 +2,7 @@
 #include "ProductCalculator.h"
 #include "EditProductWindow.h"
 #include "NewProductCreator.h"
+#include "ProductCopyCreator.h"
 #include "ProductDeletion.h"
 #include "ProjectPersistence.h"
 #include "EasterEggClickTracker.h"
@@ -24,6 +25,7 @@ WCHAR szWindowClass[MAX_LOADSTRING];
 HWND g_hProductDropdown = nullptr;
 HWND g_hEditProductButton = nullptr;
 HWND g_hCreateProductButton = nullptr;
+HWND g_hCopyProductButton = nullptr;
 HWND g_hDeleteProductButton = nullptr;
 HWND g_hCalcGroupBox = nullptr;
 HWND g_hBasePriceLabel = nullptr;
@@ -31,6 +33,7 @@ HWND g_hQuantityHeaderLabel = nullptr;
 HWND g_hTotalPriceLabel = nullptr;
 HWND g_hShowSummaryButton = nullptr;
 HWND g_hLoadProjectButton = nullptr;
+HWND g_hSaveProjectButton = nullptr;
 std::vector<HWND> g_optionLabels;
 std::vector<HWND> g_optionQuantityInputs;
 std::vector<std::wstring> g_productFolderPaths;
@@ -521,9 +524,10 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
 
     const int editButtonWidth = 150;
     const int createButtonWidth = 150;
+    const int copyButtonWidth = 150;
     const int deleteButtonWidth = 150;
     const int rowSpacing = 8;
-    const int dropdownWidth = max(120, width - editButtonWidth - createButtonWidth - deleteButtonWidth - (rowSpacing * 3));
+    const int dropdownWidth = max(120, width - editButtonWidth - createButtonWidth - copyButtonWidth - deleteButtonWidth - (rowSpacing * 4));
 
     if (g_hProductDropdown != nullptr)
     {
@@ -542,9 +546,15 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
         MoveWindow(g_hCreateProductButton, createButtonLeft, 35, createButtonWidth, 28, TRUE);
     }
 
+    const int copyButtonLeft = createButtonLeft + createButtonWidth + rowSpacing;
+    if (g_hCopyProductButton != nullptr)
+    {
+        MoveWindow(g_hCopyProductButton, copyButtonLeft, 35, copyButtonWidth, 28, TRUE);
+    }
+
     if (g_hDeleteProductButton != nullptr)
     {
-        MoveWindow(g_hDeleteProductButton, createButtonLeft + createButtonWidth + rowSpacing, 35, deleteButtonWidth, 28, TRUE);
+        MoveWindow(g_hDeleteProductButton, copyButtonLeft + copyButtonWidth + rowSpacing, 35, deleteButtonWidth, 28, TRUE);
     }
 
     if (g_hCalcGroupBox != nullptr)
@@ -598,6 +608,11 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
     if (g_hLoadProjectButton != nullptr)
     {
         MoveWindow(g_hLoadProjectButton, 188, clientHeight - 56, 160, 28, TRUE);
+    }
+
+    if (g_hSaveProjectButton != nullptr)
+    {
+        MoveWindow(g_hSaveProjectButton, 356, clientHeight - 56, 160, 28, TRUE);
     }
 }
 
@@ -862,12 +877,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             L"BUTTON",
             L"Neues Produkt",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
-            616,
+            596,
             35,
-            170,
+            150,
             28,
             hWnd,
             reinterpret_cast<HMENU>(IDC_CREATE_PRODUCT_BUTTON),
+            hInst,
+            nullptr);
+
+        g_hCopyProductButton = CreateWindowExW(
+            0,
+            L"BUTTON",
+            L"Produkt kopieren",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+            754,
+            35,
+            150,
+            28,
+            hWnd,
+            reinterpret_cast<HMENU>(IDC_COPY_PRODUCT_BUTTON),
             hInst,
             nullptr);
 
@@ -876,9 +905,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             L"BUTTON",
             L"Produkt löschen",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
-            794,
+            912,
             35,
-            170,
+            150,
             28,
             hWnd,
             reinterpret_cast<HMENU>(IDC_DELETE_PRODUCT_BUTTON),
@@ -955,6 +984,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
             0, 0, 160, 28,
             hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_LOAD_PROJECT), hInst, nullptr);
+
+        g_hSaveProjectButton = CreateWindowExW(
+            0, L"BUTTON", L"Projekt speichern",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            0, 0, 160, 28,
+            hWnd, reinterpret_cast<HMENU>(IDC_MAIN_SAVE_PROJECT), hInst, nullptr);
 
         if (g_hProductDropdown != nullptr)
         {
@@ -1080,6 +1115,41 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return 0;
         }
 
+        if (wmId == IDC_COPY_PRODUCT_BUTTON && wmEvent == BN_CLICKED)
+        {
+            if (g_selectedProductPath.empty())
+            {
+                MessageBoxW(hWnd, L"Bitte wählen Sie zuerst ein Produkt aus.", L"Produkt kopieren", MB_OK | MB_ICONINFORMATION);
+                return 0;
+            }
+
+            std::filesystem::path copiedProductPath;
+            const ProductCopyStatus copyStatus = CopyExistingProductWithNewName(hWnd, std::filesystem::path(g_selectedProductPath), copiedProductPath);
+            if (copyStatus == ProductCopyStatus::Cancelled)
+            {
+                return 0;
+            }
+
+            if (copyStatus != ProductCopyStatus::Copied || copiedProductPath.empty())
+            {
+                MessageBoxW(hWnd, L"Produkt konnte nicht kopiert werden.", L"Fehler", MB_OK | MB_ICONERROR);
+                return 0;
+            }
+
+            if (g_hProductDropdown != nullptr)
+            {
+                PopulateProductDropdown(g_hProductDropdown);
+                SelectProductByPath(g_hProductDropdown, copiedProductPath.wstring());
+            }
+
+            if (!g_selectedProductPath.empty())
+            {
+                RenderProductConfiguration(hWnd);
+            }
+
+            return 0;
+        }
+
         if (wmId == IDC_DELETE_PRODUCT_BUTTON && wmEvent == BN_CLICKED)
         {
             if (g_selectedProductPath.empty())
@@ -1126,6 +1196,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return 0;
         }
 
+        if (wmId == IDC_MAIN_SAVE_PROJECT)
+        {
+            SaveCurrentProject(hWnd);
+            return 0;
+        }
+
         switch (wmId)
         {
         case IDM_ABOUT:
@@ -1167,6 +1243,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hProductDropdown = nullptr;
         g_hEditProductButton = nullptr;
         g_hCreateProductButton = nullptr;
+        g_hCopyProductButton = nullptr;
         g_hDeleteProductButton = nullptr;
         g_hCalcGroupBox = nullptr;
         g_hBasePriceLabel = nullptr;
@@ -1174,6 +1251,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hTotalPriceLabel = nullptr;
         g_hShowSummaryButton = nullptr;
         g_hLoadProjectButton = nullptr;
+        g_hSaveProjectButton = nullptr;
         PostQuitMessage(0);
         break;
     }
