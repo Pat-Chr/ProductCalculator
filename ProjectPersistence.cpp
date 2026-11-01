@@ -32,7 +32,11 @@ namespace
 	std::wstring BuildDefaultFileName(const SavedProjectData& data)
 	{
 		std::wstring baseName = L"projekt";
-		if (!data.productPath.empty())
+		if (!data.productName.empty())
+		{
+			baseName = data.productName;
+		}
+		else if (!data.productPath.empty())
 		{
 			baseName = std::filesystem::path(data.productPath).filename().wstring();
 		}
@@ -89,38 +93,77 @@ namespace
 		return quantities;
 	}
 
-	bool CreateSnapshotForSavedProject(const std::filesystem::path& projectFilePath, const SavedProjectData& sourceData, SavedProjectData& snapshotData)
+	std::wstring ExtractProductName(const std::wstring& productPath)
 	{
-		const std::filesystem::path sourceProductPath(sourceData.productPath);
-		std::error_code ec;
-		if (!std::filesystem::exists(sourceProductPath, ec) || !std::filesystem::is_directory(sourceProductPath, ec))
+		if (productPath.empty())
+		{
+			return L"";
+		}
+
+		const std::wstring fileName = std::filesystem::path(productPath).filename().wstring();
+		if (!fileName.empty())
+		{
+			return fileName;
+		}
+
+		return productPath;
+	}
+
+	std::wstring EncodeUtf8AsHex(const std::string& value)
+	{
+		static const wchar_t hexDigits[] = L"0123456789ABCDEF";
+		std::wstring encoded;
+		encoded.reserve(value.size() * 2);
+
+		for (unsigned char byte : value)
+		{
+			encoded.push_back(hexDigits[(byte >> 4) & 0x0F]);
+			encoded.push_back(hexDigits[byte & 0x0F]);
+		}
+
+		return encoded;
+	}
+
+	int ParseHexNibble(wchar_t ch)
+	{
+		if (ch >= L'0' && ch <= L'9')
+		{
+			return static_cast<int>(ch - L'0');
+		}
+		if (ch >= L'a' && ch <= L'f')
+		{
+			return static_cast<int>(10 + (ch - L'a'));
+		}
+		if (ch >= L'A' && ch <= L'F')
+		{
+			return static_cast<int>(10 + (ch - L'A'));
+		}
+		return -1;
+	}
+
+	bool DecodeHexToUtf8(const std::wstring& value, std::string& decoded)
+	{
+		if ((value.size() % 2) != 0)
 		{
 			return false;
 		}
 
-		const std::filesystem::path snapshotDirectory = projectFilePath.parent_path() / SanitizeFileName(projectFilePath.stem().wstring());
-		std::filesystem::remove_all(snapshotDirectory, ec);
-		ec.clear();
-		if (!std::filesystem::create_directories(snapshotDirectory, ec) || ec)
+		decoded.clear();
+		decoded.reserve(value.size() / 2);
+
+		for (size_t i = 0; i < value.size(); i += 2)
 		{
-			return false;
+			const int high = ParseHexNibble(value[i]);
+			const int low = ParseHexNibble(value[i + 1]);
+			if (high < 0 || low < 0)
+			{
+				return false;
+			}
+
+			const char byteValue = static_cast<char>((high << 4) | low);
+			decoded.push_back(byteValue);
 		}
 
-		std::wstring sourceFolderName = sourceProductPath.filename().wstring();
-		if (sourceFolderName.empty())
-		{
-			sourceFolderName = L"produkt";
-		}
-
-		const std::filesystem::path snapshotProductPath = snapshotDirectory / SanitizeFileName(sourceFolderName);
-		std::filesystem::copy(sourceProductPath, snapshotProductPath, std::filesystem::copy_options::recursive, ec);
-		if (ec)
-		{
-			return false;
-		}
-
-		snapshotData = sourceData;
-		snapshotData.productPath = snapshotProductPath.wstring();
 		return true;
 	}
 
@@ -133,6 +176,8 @@ namespace
 		}
 
 		file << L"productPath=" << data.productPath << L"\n";
+		file << L"productName=" << data.productName << L"\n";
+		file << L"productJsonHex=" << EncodeUtf8AsHex(data.productJsonUtf8) << L"\n";
 		file << L"quantities=" << JoinQuantities(data.optionQuantities) << L"\n";
 		return static_cast<bool>(file);
 	}
@@ -163,6 +208,14 @@ namespace
 			{
 				loadedData.productPath = value;
 			}
+			else if (key == L"productName")
+			{
+				loadedData.productName = value;
+			}
+			else if (key == L"productJsonHex")
+			{
+				DecodeHexToUtf8(value, loadedData.productJsonUtf8);
+			}
 			else if (key == L"quantities")
 			{
 				loadedData.optionQuantities = ParseQuantities(value);
@@ -172,6 +225,11 @@ namespace
 		if (loadedData.productPath.empty())
 		{
 			return false;
+		}
+
+		if (loadedData.productName.empty())
+		{
+			loadedData.productName = ExtractProductName(loadedData.productPath);
 		}
 
 		data = std::move(loadedData);
@@ -225,13 +283,13 @@ bool SaveProjectDataWithDialog(HWND hOwner, const SavedProjectData& data, std::w
 	}
 
 	const std::filesystem::path outputPath = fileNameBuffer.data();
-	SavedProjectData snapshotData;
-	if (!CreateSnapshotForSavedProject(outputPath, data, snapshotData))
+	SavedProjectData dataToSave = data;
+	if (dataToSave.productName.empty())
 	{
-		return false;
+		dataToSave.productName = ExtractProductName(dataToSave.productPath);
 	}
 
-	if (!SaveProjectDataToFile(outputPath, snapshotData))
+	if (!SaveProjectDataToFile(outputPath, dataToSave))
 	{
 		return false;
 	}

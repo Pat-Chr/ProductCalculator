@@ -12,7 +12,9 @@ constexpr UINT WM_PRODUCT_CONFIGURATION_UPDATED = WM_APP + 1;
 // Parameter:
 //   ownerWindow - Das Hauptfenster (für Modality und Nachrichten)
 //   productFolderPath - Pfad zum Produktdaten-Verzeichnis mit der produkt.json Datei
+//   showProjectSaveButton - Steuert, ob der Button "Projekt speichern" sichtbar ist
+//   showProductSaveButton - Steuert, ob der Button "Produkt speichern" sichtbar ist
 // Rückgabewert:
 //   true - Wenn das Fenster erfolgreich geöffnet wurde (oder bereits offen war)
 //   false - Wenn ownerWindow nullptr oder productFolderPath leer ist
-bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPath);
+bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPath, bool showProjectSaveButton = true, bool showProductSaveButton = true);

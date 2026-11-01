@@ -59,6 +59,8 @@ namespace
 		HWND cancelButton = nullptr;			// Schließen/Abbrechen-Button
 		HWND showSummaryButton = nullptr;	// Öffnet die Zusammenfassung des geladenen Projekts
 		HWND saveProjectButton = nullptr;	// Speichert den aktuellen Projektstand
+		bool showProjectSaveButton = true;	// Sichtbarkeit des Projekt-Speichern-Buttons
+		bool showProductSaveButton = true;	// Sichtbarkeit des Produkt-Speichern-Buttons
 		ProductEditorModel model;			// Aktuelle Produktmodell-Daten
 	};
 
@@ -475,28 +477,32 @@ namespace
 
 
 		const int bottomButtonGap = 8;
-		const int bottomButtonCount = 4;
+		const int bottomButtonCount = 2 + (state->showProjectSaveButton ? 1 : 0) + (state->showProductSaveButton ? 1 : 0);
 		const int bottomRowWidth = (actionButtonWidth * bottomButtonCount) + (bottomButtonGap * (bottomButtonCount - 1));
 		const int bottomStartLeft = max(margin, clientWidth - margin - bottomRowWidth);
 
+		int buttonIndex = 0;
 		if (state->showSummaryButton != nullptr)
 		{
-			MoveWindow(state->showSummaryButton, bottomStartLeft, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->showSummaryButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			++buttonIndex;
 		}
 
-		if (state->saveProjectButton != nullptr)
+		if (state->showProjectSaveButton && state->saveProjectButton != nullptr)
 		{
-			MoveWindow(state->saveProjectButton, bottomStartLeft + actionButtonWidth + bottomButtonGap, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->saveProjectButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			++buttonIndex;
 		}
 
-		if (state->saveButton != nullptr)
+		if (state->showProductSaveButton && state->saveButton != nullptr)
 		{
-			MoveWindow(state->saveButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * 2, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->saveButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			++buttonIndex;
 		}
 
 		if (state->cancelButton != nullptr)
 		{
-			MoveWindow(state->cancelButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * 3, actionTop, actionButtonWidth, buttonHeight, TRUE);
+			MoveWindow(state->cancelButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
 		}
 	}
 
@@ -887,6 +893,10 @@ namespace
 				reinterpret_cast<HMENU>(IDC_EDIT_PROJECT_SAVE_CHANGES),
 				appInstance,
 				nullptr);
+			if (state->saveProjectButton != nullptr)
+			{
+				ShowWindow(state->saveProjectButton, state->showProjectSaveButton ? SW_SHOW : SW_HIDE);
+			}
 
 			// Erstellt den Speichern-Button (Standardbutton).
 			state->saveButton = CreateWindowExW(
@@ -902,6 +912,10 @@ namespace
 				reinterpret_cast<HMENU>(IDC_EDIT_PRODUCT_SAVE),
 				appInstance,
 				nullptr);
+			if (state->saveButton != nullptr)
+			{
+				ShowWindow(state->saveButton, state->showProductSaveButton ? SW_SHOW : SW_HIDE);
+			}
 
 			// Erstellt den Schließen/Abbrechen-Button.
 			state->cancelButton = CreateWindowExW(
@@ -987,7 +1001,10 @@ namespace
 
 			if (LOWORD(wParam) == IDC_EDIT_PRODUCT_SAVE)
 			{
-				SaveAndRefresh(hWnd, state);
+				if (state != nullptr && state->showProductSaveButton)
+				{
+					SaveAndRefresh(hWnd, state);
+				}
 				return 0;
 			}
 
@@ -1020,7 +1037,7 @@ namespace
 // Falls das Fenster bereits offen ist, wird es nur fokussiert und wiederhergestellt.
 // Gibt true zurück, wenn das Fenster erfolgreich geöffnet wurde (oder bereits offen war).
 // Gibt false zurück, wenn ownerWindow nullptr oder productFolderPath leer ist.
-bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPath)
+bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPath, bool showProjectSaveButton, bool showProductSaveButton)
 {
 	if (ownerWindow == nullptr || productFolderPath.empty())
 	{
@@ -1029,6 +1046,25 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 
 	if (g_hEditWindow != nullptr)
 	{
+		EditWindowState* state = reinterpret_cast<EditWindowState*>(GetWindowLongPtrW(g_hEditWindow, GWLP_USERDATA));
+		if (state != nullptr)
+		{
+			state->showProjectSaveButton = showProjectSaveButton;
+			state->showProductSaveButton = showProductSaveButton;
+			if (state->saveProjectButton != nullptr)
+			{
+				ShowWindow(state->saveProjectButton, showProjectSaveButton ? SW_SHOW : SW_HIDE);
+			}
+			if (state->saveButton != nullptr)
+			{
+				ShowWindow(state->saveButton, showProductSaveButton ? SW_SHOW : SW_HIDE);
+			}
+
+			RECT clientRect{};
+			GetClientRect(g_hEditWindow, &clientRect);
+			LayoutEditWindowControls(state, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+		}
+
 		// Es bleibt immer nur ein Bearbeitungsfenster offen; erneute Aufrufe fokussieren nur.
 		ShowWindow(g_hEditWindow, SW_RESTORE);
 		SetForegroundWindow(g_hEditWindow);
@@ -1050,6 +1086,8 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 	EditWindowState* state = new EditWindowState();
 	state->productFolderPath = productFolderPath;
 	state->ownerWindow = ownerWindow;
+	state->showProjectSaveButton = showProjectSaveButton;
+	state->showProductSaveButton = showProductSaveButton;
 
 	g_hEditWindow = CreateWindowExW(
 		WS_EX_APPWINDOW,

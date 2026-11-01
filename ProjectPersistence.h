@@ -8,6 +8,8 @@
 struct SavedProjectData
 {
 	std::wstring productPath;
+	std::wstring productName;
+	std::string productJsonUtf8;
 	std::vector<int> optionQuantities;
 };
 
