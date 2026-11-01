@@ -4,6 +4,7 @@
 #include "NewProductCreator.h"
 #include "ProductDeletion.h"
 #include "ProjectPersistence.h"
+#include "EasterEggClickTracker.h"
 
 #include <algorithm>
 #include <fstream>
@@ -36,6 +37,7 @@ std::vector<std::wstring> g_productFolderPaths;
 std::wstring g_selectedProductPath;
 ProductConfiguration g_currentConfiguration;
 AppSettings g_appSettings;
+EasterEggClickTracker g_easterEggClickTracker;
 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -322,6 +324,16 @@ std::wstring FormatPrice(double value)
     std::wstring number = stream.str();
     std::replace(number.begin(), number.end(), L'.', L',');
     return number + L" " + g_appSettings.standardwaehrung;
+}
+
+std::wstring GetCurrentCurrency()
+{
+    if (g_appSettings.standardwaehrung.empty())
+    {
+        return L"CHF";
+    }
+
+    return g_appSettings.standardwaehrung;
 }
 
 // Lädt die Produktkonfiguration aus produkt.json.
@@ -933,7 +945,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             nullptr);
 
         g_hShowSummaryButton = CreateWindowExW(
-            0, L"BUTTON", L"Ergebnis anzeigen",
+            0, L"BUTTON", L"Kalkulieren",
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
             0, 0, 160, 28,
             hWnd, reinterpret_cast<HMENU>(IDC_BTN_SHOW_SUMMARY), hInst, nullptr);
@@ -964,6 +976,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         UpdateLayout(hWnd, clientWidth, clientHeight);
 
+        break;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        if (g_easterEggClickTracker.RegisterClick(GetTickCount64()))
+        {
+            MessageBoxW(hWnd, L"Was Wotsch?", L"Ey!", MB_OK | MB_ICONWARNING);
+        }
         break;
     }
     case WM_PRODUCT_CONFIGURATION_UPDATED:
@@ -1020,7 +1040,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 return 0;
             }
 
-            if (!OpenEditProductWindow(hWnd, g_selectedProductPath))
+            if (!OpenEditProductWindow(hWnd, g_selectedProductPath, false, true))
             {
                 MessageBoxW(hWnd, L"Das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Fehler", MB_OK | MB_ICONERROR);
             }
@@ -1053,7 +1073,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 RenderProductConfiguration(hWnd);
             }
 
-            if (!OpenEditProductWindow(hWnd, newProductPath.wstring()))
+            if (!OpenEditProductWindow(hWnd, newProductPath.wstring(), false, true))
             {
                 MessageBoxW(hWnd, L"Das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Fehler", MB_OK | MB_ICONERROR);
             }

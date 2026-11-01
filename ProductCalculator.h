@@ -34,5 +34,6 @@ extern std::wstring g_selectedProductPath;
 extern ProductConfiguration g_currentConfiguration;
 
 std::wstring FormatPrice(double value);
+std::wstring GetCurrentCurrency();
 int GetOptionQuantity(size_t index);
 void ShowSummaryWindow(HWND hParent);

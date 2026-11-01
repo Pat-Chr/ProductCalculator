@@ -341,7 +341,8 @@ namespace
 	{
 		std::wostringstream stream;
 		stream.setf(std::ios::fixed);
-		stream << option.name << L" (+" << std::setprecision(2) << option.price << L")";
+		const std::wstring currency = GetCurrentCurrency();
+		stream << option.name << L" (+" << std::setprecision(2) << option.price << L" " << currency << L")";
 		if (showQuantity)
 		{
 			stream << L" | Menge: " << max(0, quantity);
@@ -350,6 +351,11 @@ namespace
 	}
 
 	bool ShouldShowQuantityEditor(const EditWindowState* state)
+	{
+		return state != nullptr && !state->showProductSaveButton;
+	}
+
+	bool ShouldShowSummaryButton(const EditWindowState* state)
 	{
 		return state != nullptr && !state->showProductSaveButton;
 	}
@@ -425,10 +431,11 @@ namespace
 		const int margin = 10;
 		const int inputHeight = 24;
 		const int smallButtonWidth = 130;
-		const int actionButtonWidth = 120;
+		const int actionButtonWidth = 150;
 		const int buttonHeight = 28;
 
 		const bool showQuantityEditor = ShouldShowQuantityEditor(state);
+		const bool showSummaryButton = ShouldShowSummaryButton(state);
 		const int actionTop = clientHeight - margin - buttonHeight;
 		const int optionInputTop = actionTop - 40;
 		const int quantityInputTop = optionInputTop - 34;
@@ -439,7 +446,7 @@ namespace
 		const int listHeight = max(100, listBottom - listTop);
 		const int availableWidth = max(260, clientWidth - (margin * 2));
 
-		const int baseLabelWidth = 85;
+		const int baseLabelWidth = 145;
 		const int baseInputWidth = 120;
 		HWND basePriceLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_BASE_PRICE + 100);
 		if (basePriceLabel != nullptr)
@@ -512,7 +519,7 @@ namespace
 		const int nameLabelWidth = 60;
 		const int nameInputLeft = margin + nameLabelWidth + 2;
 		const int priceGap = 8;
-		const int priceLabelWidth = 45;
+		const int priceLabelWidth = 110;
 		const int priceInputGap = 10;
 		const int priceInputWidth = 90;
 		const int buttonGap = 8;
@@ -558,15 +565,19 @@ namespace
 
 
 		const int bottomButtonGap = 8;
-		const int bottomButtonCount = 2 + (state->showProjectSaveButton ? 1 : 0) + (state->showProductSaveButton ? 1 : 0);
+		const int bottomButtonCount = 1 + (showSummaryButton ? 1 : 0) + (state->showProjectSaveButton ? 1 : 0) + (state->showProductSaveButton ? 1 : 0);
 		const int bottomRowWidth = (actionButtonWidth * bottomButtonCount) + (bottomButtonGap * (bottomButtonCount - 1));
 		const int bottomStartLeft = max(margin, clientWidth - margin - bottomRowWidth);
 
 		int buttonIndex = 0;
 		if (state->showSummaryButton != nullptr)
 		{
-			MoveWindow(state->showSummaryButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
-			++buttonIndex;
+			ShowWindow(state->showSummaryButton, showSummaryButton ? SW_SHOW : SW_HIDE);
+			if (showSummaryButton)
+			{
+				MoveWindow(state->showSummaryButton, bottomStartLeft + (actionButtonWidth + bottomButtonGap) * buttonIndex, actionTop, actionButtonWidth, buttonHeight, TRUE);
+				++buttonIndex;
+			}
 		}
 
 		if (state->showProjectSaveButton && state->saveProjectButton != nullptr)
@@ -836,12 +847,16 @@ namespace
 			state = reinterpret_cast<EditWindowState*>(createStruct->lpCreateParams);
 			SetWindowLongPtrW(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
 			const HINSTANCE appInstance = GetModuleHandleW(nullptr);
+			const std::wstring currency = GetCurrentCurrency();
+			const std::wstring basePriceLabelText = L"Basispreis (" + currency + L"):";
+			const std::wstring optionsLabelText = L"Optionen (" + currency + L")";
+			const std::wstring optionPriceLabelText = L"Preis (" + currency + L"):";
 
 			// Erstellt das Label und Eingabefeld für den Basispreis.
 			CreateWindowExW(
 				0,
 				L"STATIC",
-				L"Basispreis:",
+				basePriceLabelText.c_str(),
 				WS_CHILD | WS_VISIBLE,
 				0,
 				0,
@@ -870,7 +885,7 @@ namespace
 			CreateWindowExW(
 				0,
 				L"STATIC",
-				L"Optionen",
+				optionsLabelText.c_str(),
 				WS_CHILD | WS_VISIBLE,
 				0,
 				0,
@@ -970,7 +985,7 @@ namespace
 			CreateWindowExW(
 				0,
 				L"STATIC",
-				L"Preis:",
+				optionPriceLabelText.c_str(),
 				WS_CHILD | WS_VISIBLE,
 				0,
 				0,
@@ -1059,7 +1074,7 @@ namespace
 			state->showSummaryButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Zu Summary",
+				L"Kalkulieren",
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
 				0,
 				0,
@@ -1069,6 +1084,10 @@ namespace
 				reinterpret_cast<HMENU>(IDC_EDIT_PROJECT_TO_SUMMARY),
 				appInstance,
 				nullptr);
+			if (state->showSummaryButton != nullptr)
+			{
+				ShowWindow(state->showSummaryButton, ShouldShowSummaryButton(state) ? SW_SHOW : SW_HIDE);
+			}
 
 			// Erstellt den Button zum Speichern des aktuellen Projektstands.
 			state->saveProjectButton = CreateWindowExW(
@@ -1261,6 +1280,10 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 			if (state->saveButton != nullptr)
 			{
 				ShowWindow(state->saveButton, showProductSaveButton ? SW_SHOW : SW_HIDE);
+			}
+			if (state->showSummaryButton != nullptr)
+			{
+				ShowWindow(state->showSummaryButton, ShouldShowSummaryButton(state) ? SW_SHOW : SW_HIDE);
 			}
 
 			RefreshOptionList(state);

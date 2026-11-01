@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -144,6 +144,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="EditProductWindow.h" />
+    <ClInclude Include="EasterEggClickTracker.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="NewProductCreator.h" />
     <ClInclude Include="ProductDeletion.h" />
@@ -154,6 +155,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EditProductWindow.cpp" />
+    <ClCompile Include="EasterEggClickTracker.cpp" />
     <ClCompile Include="NewProductCreator.cpp" />
     <ClCompile Include="ProductCalculator.cpp" />
     <ClCompile Include="ProductDeletion.cpp" />
@@ -187,6 +189,9 @@ xcopy /E /I /Y "$(ProjectDir)produktdaten" "$(OutDir)produktdaten\"</Command>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
+
+
+
 
 
 

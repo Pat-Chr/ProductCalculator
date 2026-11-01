@@ -81,7 +81,7 @@ namespace
 			CreateWindowExW(
 				0, L"BUTTON", L"Projekt speichern",
 				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-				12, 440, 160, 32,
+				12, 440, 190, 32,
 				hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_SAVE_PROJECT), hInst, nullptr);
 
 			CreateWindowExW(
@@ -111,7 +111,7 @@ namespace
 			const int margin = 12;
 			const int buttonH = 32;
 			const int smallButtonW = 120;
-			const int largeButtonW = 160;
+			const int largeButtonW = 190;
 			const int buttonGap = 8;
 			const int editH = height - (margin * 3) - buttonH;
 			const int buttonTop = height - margin - buttonH;
