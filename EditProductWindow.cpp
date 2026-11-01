@@ -337,18 +337,26 @@ namespace
 	}
 
 	// Erzeugt den Anzeige-Text für eine Option in der ListBox.
-	// Format: "OptionName (+Preis) | Menge: X" z.B. "Schrauber (+5,00) | Menge: 2"
-	std::wstring FormatOptionDisplayText(const ProductOption& option, int quantity)
+	std::wstring FormatOptionDisplayText(const ProductOption& option, int quantity, bool showQuantity)
 	{
 		std::wostringstream stream;
 		stream.setf(std::ios::fixed);
-		stream << option.name << L" (+" << std::setprecision(2) << option.price << L") | Menge: " << max(0, quantity);
+		stream << option.name << L" (+" << std::setprecision(2) << option.price << L")";
+		if (showQuantity)
+		{
+			stream << L" | Menge: " << max(0, quantity);
+		}
 		return stream.str();
+	}
+
+	bool ShouldShowQuantityEditor(const EditWindowState* state)
+	{
+		return state != nullptr && !state->showProductSaveButton;
 	}
 
 	void SyncSelectedOptionQuantityInput(EditWindowState* state)
 	{
-		if (state == nullptr || state->optionListControl == nullptr || state->optionQuantityInput == nullptr)
+		if (state == nullptr || state->optionListControl == nullptr || state->optionQuantityInput == nullptr || !ShouldShowQuantityEditor(state))
 		{
 			return;
 		}
@@ -377,12 +385,13 @@ namespace
 			return;
 		}
 
+		const bool showQuantityEditor = ShouldShowQuantityEditor(state);
 		const LRESULT previousSelection = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
 		SendMessageW(state->optionListControl, LB_RESETCONTENT, 0, 0);
 		for (size_t index = 0; index < state->model.options.size(); ++index)
 		{
 			const int quantity = (index < g_optionQuantityInputs.size()) ? GetOptionQuantity(index) : 0;
-			const std::wstring itemText = FormatOptionDisplayText(state->model.options[index], quantity);
+			const std::wstring itemText = FormatOptionDisplayText(state->model.options[index], quantity, showQuantityEditor);
 			SendMessageW(state->optionListControl, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(itemText.c_str()));
 		}
 
@@ -419,13 +428,14 @@ namespace
 		const int actionButtonWidth = 120;
 		const int buttonHeight = 28;
 
+		const bool showQuantityEditor = ShouldShowQuantityEditor(state);
 		const int actionTop = clientHeight - margin - buttonHeight;
 		const int optionInputTop = actionTop - 40;
 		const int quantityInputTop = optionInputTop - 34;
 		const int baseInputTop = margin;
 		const int optionsLabelTop = baseInputTop + inputHeight + 8;
 		const int listTop = optionsLabelTop + 22;
-		const int listBottom = quantityInputTop - 10;
+		const int listBottom = (showQuantityEditor ? quantityInputTop : optionInputTop) - 10;
 		const int listHeight = max(100, listBottom - listTop);
 		const int availableWidth = max(260, clientWidth - (margin * 2));
 
@@ -474,17 +484,29 @@ namespace
 		HWND quantityLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_QUANTITY + 100);
 		if (quantityLabel != nullptr)
 		{
-			MoveWindow(quantityLabel, margin, quantityInputTop, 60, inputHeight, TRUE);
+			ShowWindow(quantityLabel, showQuantityEditor ? SW_SHOW : SW_HIDE);
+			if (showQuantityEditor)
+			{
+				MoveWindow(quantityLabel, margin, quantityInputTop, 60, inputHeight, TRUE);
+			}
 		}
 
 		if (state->optionQuantityInput != nullptr)
 		{
-			MoveWindow(state->optionQuantityInput, margin + 64, quantityInputTop, 90, inputHeight, TRUE);
+			ShowWindow(state->optionQuantityInput, showQuantityEditor ? SW_SHOW : SW_HIDE);
+			if (showQuantityEditor)
+			{
+				MoveWindow(state->optionQuantityInput, margin + 64, quantityInputTop, 90, inputHeight, TRUE);
+			}
 		}
 
 		if (state->applyOptionQuantityButton != nullptr)
 		{
-			MoveWindow(state->applyOptionQuantityButton, margin + 164, quantityInputTop, 170, buttonHeight, TRUE);
+			ShowWindow(state->applyOptionQuantityButton, showQuantityEditor ? SW_SHOW : SW_HIDE);
+			if (showQuantityEditor)
+			{
+				MoveWindow(state->applyOptionQuantityButton, margin + 164, quantityInputTop, 170, buttonHeight, TRUE);
+			}
 		}
 
 		const int nameLabelWidth = 60;
@@ -639,7 +661,7 @@ namespace
 
 	void ApplySelectedOptionQuantity(HWND hWnd, EditWindowState* state)
 	{
-		if (state == nullptr || state->optionListControl == nullptr || state->optionQuantityInput == nullptr)
+		if (state == nullptr || state->optionListControl == nullptr || state->optionQuantityInput == nullptr || !ShouldShowQuantityEditor(state))
 		{
 			return;
 		}
