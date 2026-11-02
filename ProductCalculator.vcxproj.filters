@@ -48,6 +48,12 @@
     <ClInclude Include="RestoredProductsCleanup.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="EasterEggClickTracker.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ProjectPersistence.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ProductCalculator.cpp">
@@ -66,6 +72,15 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="RestoredProductsCleanup.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="EasterEggClickTracker.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="ProjectPersistence.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="ProductSummaryWindow.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
@@ -93,11 +108,6 @@
       <Filter>produktdaten\beispielprodukt</Filter>
     </None>
     <None Include="settings.json" />
+    <None Include="CHANGELOG.md" />
   </ItemGroup>
 </Project>
-
-
-
-
-
-

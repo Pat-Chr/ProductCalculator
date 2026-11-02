@@ -175,6 +175,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="ARCHITECTURE.md" />
+    <None Include="CHANGELOG.md" />
     <None Include="produktdaten\beispielprodukt\produkt.json" />
     <None Include="produktdaten\README_Produkte.md" />
     <None Include="README.md" />
@@ -193,12 +194,3 @@ xcopy /E /I /Y "$(ProjectDir)produktdaten" "$(OutDir)produktdaten\"</Command>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
-
-
-
-
-
-
-
-
-
