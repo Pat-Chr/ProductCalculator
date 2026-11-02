@@ -85,5 +85,6 @@ Hinweis:
 
 ## Dokumentation
 - [ARCHITECTURE.md](ARCHITECTURE.md) – detaillierte Architektur
+- [CHANGELOG.md](CHANGELOG.md) – Änderungen pro Version
 - [produktdaten/README_Produkte.md](produktdaten/README_Produkte.md) – Produktdatenstruktur
 - [LICENSE.txt](LICENSE.txt) – Lizenz
