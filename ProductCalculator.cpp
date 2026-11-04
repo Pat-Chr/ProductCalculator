@@ -626,6 +626,7 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
 }
 
 // Populates the product dropdown with all available product data directories.
+// Only folders containing a product.json file are selectable.
 // Sorts folders alphabetically and sets the first one as default selection.
 void PopulateProductDropdown(HWND hCombo)
 {
@@ -645,7 +646,14 @@ void PopulateProductDropdown(HWND hCombo)
     for (const auto& entry : std::filesystem::directory_iterator(productDataPath))
     {
         std::error_code ec;
-        if (entry.is_directory(ec))
+        if (!entry.is_directory(ec))
+        {
+            continue;
+        }
+
+        const std::filesystem::path configPath = entry.path() / L"product.json";
+        ec.clear();
+        if (std::filesystem::exists(configPath, ec) && std::filesystem::is_regular_file(configPath, ec))
         {
             productFolders.push_back(entry.path());
         }
@@ -671,7 +679,7 @@ void PopulateProductDropdown(HWND hCombo)
 
     if (g_productFolderPaths.empty())
     {
-        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Keine Produktordner vorhanden"));
+        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Keine gültigen Produktordner vorhanden"));
         EnableWindow(hCombo, FALSE);
         return;
     }

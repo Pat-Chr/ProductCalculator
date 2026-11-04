@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -176,8 +176,6 @@
   <ItemGroup>
     <None Include="ARCHITECTURE.md" />
     <None Include="CHANGELOG.md" />
-    <None Include="productdata\beispielprodukt\produkt.json" />
-    <None Include="productdata\exampleproduct\produkt.json" />
     <None Include="productdata\\exampleproduct\\product.json" />
     <None Include="productdata\README_Products.md" />
     <None Include="README.md" />
