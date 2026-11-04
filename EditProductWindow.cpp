@@ -24,7 +24,6 @@ namespace
 	struct ProductOption
 	{
 		std::wstring name;			// Name der Option (z.B. "Schrauber")
-		std::wstring articleNumber = L"-";	// Artikelnummer oder "-" falls nicht gesetzt
 		double price = 0.0;			// Preis für diese Option in der Standardwährung
 	};
 
@@ -32,14 +31,12 @@ namespace
 	// Enthält alle Daten, die im JSON gespeichert werden:
 	// - produktId: eindeutige Identifikation des Produkts
 	// - produktname: menschlich lesbarer Name
-	// - artikelnummer: optionale Artikelnummer ("-" wenn nicht vorhanden)
 	// - basispreis: Grundpreis ohne Optionen
 	// - optionen: Liste aller verfügbaren Optionen mit Namen und Preisen
 	struct ProductEditorModel
 	{
 		std::wstring productId;		// Eindeutige ID des Produkts (z.B. "PROD-001")
 		std::wstring productName;	// Menschlicher Produktname (z.B. "Basispaket")
-		std::wstring articleNumber = L"-";	// Artikelnummer oder "-" falls nicht gesetzt
 		double basePrice = 0.0;		// Basispreis ohne Optionen
 		std::vector<ProductOption> options;	// Liste aller Optionen
 	};
@@ -52,9 +49,7 @@ namespace
 		HWND ownerWindow = nullptr;			// Referenz zum Hauptfenster (für Nachrichten)
 		HWND optionListControl = nullptr;	// ListBox zur Anzeige aller Optionen
 		HWND basePriceInput = nullptr;		// Eingabefeld für den Basispreis
-		HWND articleNumberInput = nullptr;	// Eingabefeld für die Artikelnummer
 		HWND optionNameInput = nullptr;		// Eingabefeld für den Optionsnamen
-		HWND optionArticleNumberInput = nullptr;	// Eingabefeld für die Options-Artikelnummer
 		HWND optionPriceInput = nullptr;		// Eingabefeld für den Optionspreis
 		HWND optionQuantityInput = nullptr;	// Eingabefeld für die Menge der ausgewählten Option
 		HWND applyOptionQuantityButton = nullptr;	// Button zum Übernehmen der Menge
@@ -262,7 +257,7 @@ namespace
 	}
 
 	// Parst das Produktmodell aus dem JSON-Text.
-	// Extrahiert produktId, produktname, artikelnummer, basispreis und optionen mittels Regex.
+	// Extrahiert produktId, produktname, basispreis und optionen mittels Regex.
 	// Gibt false zurück, wenn der Parsing-Fehler auftritt (z.B. ungültiges JSON).
 	// Hinweis: Bei komplexeren JSON-Strukturen sollte ein vollwertiger JSON-Parser verwendet werden.
 	bool TryParseProductModel(const std::string& jsonText, ProductEditorModel& model)
@@ -270,7 +265,6 @@ namespace
 		ProductEditorModel parsedModel;
 		parsedModel.productId = L"";
 		parsedModel.productName = L"";
-		parsedModel.articleNumber = L"-";
 		parsedModel.basePrice = 0.0;
 
 		try
@@ -287,37 +281,19 @@ namespace
 				parsedModel.productName = UnescapeJsonString(ToWideStringLocal(nameMatch[1].str()));
 			}
 
-			std::smatch articleNumberMatch;
-			if (std::regex_search(jsonText, articleNumberMatch, std::regex("\\\"artikelnummer\\\"\\s*:\\s*\\\"([^\\\"\\\\]*(?:\\\\.[^\\\"\\\\]*)*)\\\"")))
-			{
-				const std::wstring parsedArticleNumber = UnescapeJsonString(ToWideStringLocal(articleNumberMatch[1].str()));
-				if (!parsedArticleNumber.empty())
-				{
-					parsedModel.articleNumber = parsedArticleNumber;
-				}
-			}
-
 			std::smatch basePriceMatch;
 			if (std::regex_search(jsonText, basePriceMatch, std::regex("\\\"basispreis\\\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)")))
 			{
 				parsedModel.basePrice = std::stod(basePriceMatch[1].str());
 			}
 
-			const std::regex optionRegex(R"opt(\{\s*"name"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,\s*(?:"artikelnummer"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,\s*)?"preis"\s*:\s*(-?\d+(?:\.\d+)?)\s*\})opt");
+			const std::regex optionRegex(R"opt(\{\s*"name"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,\s*"preis"\s*:\s*(-?\d+(?:\.\d+)?)\s*\})opt");
 			for (std::sregex_iterator it(jsonText.begin(), jsonText.end(), optionRegex); it != std::sregex_iterator(); ++it)
 			{
 				const std::smatch& match = *it;
 				ProductOption option;
 				option.name = UnescapeJsonString(ToWideStringLocal(match[1].str()));
-				if (match[2].matched)
-				{
-					const std::wstring parsedOptionArticleNumber = UnescapeJsonString(ToWideStringLocal(match[2].str()));
-					if (!parsedOptionArticleNumber.empty())
-					{
-						option.articleNumber = parsedOptionArticleNumber;
-					}
-				}
-				option.price = std::stod(match[3].str());
+				option.price = std::stod(match[2].str());
 				parsedModel.options.push_back(option);
 			}
 		}
@@ -339,7 +315,6 @@ namespace
 		stream << L"{\n";
 		stream << L"  \"produktId\": \"" << EscapeJsonString(model.productId) << L"\",\n";
 		stream << L"  \"produktname\": \"" << EscapeJsonString(model.productName) << L"\",\n";
-		stream << L"  \"artikelnummer\": \"" << EscapeJsonString(model.articleNumber) << L"\",\n";
 		stream << L"  \"basispreis\": " << ToWideStringLocal(FormatJsonNumberLocal(model.basePrice)) << L",\n";
 		stream << L"  \"optionen\": [\n";
 
@@ -348,7 +323,6 @@ namespace
 			const ProductOption& option = model.options[i];
 			stream << L"    {\n";
 			stream << L"      \"name\": \"" << EscapeJsonString(option.name) << L"\",\n";
-			stream << L"      \"artikelnummer\": \"" << EscapeJsonString(option.articleNumber) << L"\",\n";
 			stream << L"      \"preis\": " << ToWideStringLocal(FormatJsonNumberLocal(option.price)) << L"\n";
 			stream << L"    }";
 			if (i + 1 < model.options.size())
@@ -369,7 +343,7 @@ namespace
 		std::wostringstream stream;
 		stream.setf(std::ios::fixed);
 		const std::wstring currency = GetCurrentCurrency();
-		stream << option.name << L" | Art.-Nr.: " << option.articleNumber << L" (+" << std::setprecision(2) << option.price << L" " << currency << L")";
+		stream << option.name << L" (+" << std::setprecision(2) << option.price << L" " << currency << L")";
 		if (showQuantity)
 		{
 			stream << L" | Menge: " << max(0, quantity);
@@ -411,11 +385,7 @@ namespace
 
 	void SyncSelectedOptionEditorInputs(EditWindowState* state)
 	{
-<<<<<<< HEAD
-		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionArticleNumberInput == nullptr || state->optionPriceInput == nullptr)
-=======
 		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionPriceInput == nullptr)
->>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		{
 			return;
 		}
@@ -424,10 +394,6 @@ namespace
 		if (selected == LB_ERR)
 		{
 			SetWindowTextW(state->optionNameInput, L"");
-<<<<<<< HEAD
-			SetWindowTextW(state->optionArticleNumberInput, L"-");
-=======
->>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 			SetWindowTextW(state->optionPriceInput, L"0");
 			return;
 		}
@@ -440,10 +406,6 @@ namespace
 
 		const ProductOption& option = state->model.options[selectedIndex];
 		SetWindowTextW(state->optionNameInput, option.name.c_str());
-<<<<<<< HEAD
-		SetWindowTextW(state->optionArticleNumberInput, option.articleNumber.c_str());
-=======
->>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		const std::wstring priceText = ToWideStringLocal(FormatJsonNumberLocal(option.price));
 		SetWindowTextW(state->optionPriceInput, priceText.c_str());
 	}
@@ -511,8 +473,7 @@ namespace
 		const int optionInputTop = actionTop - 40;
 		const int quantityInputTop = optionInputTop - 34;
 		const int baseInputTop = margin;
-		const int articleInputTop = baseInputTop + inputHeight + 6;
-		const int optionsLabelTop = articleInputTop + inputHeight + 8;
+		const int optionsLabelTop = baseInputTop + inputHeight + 8;
 		const int listTop = optionsLabelTop + 22;
 		const int listBottom = (showQuantityEditor ? quantityInputTop : optionInputTop) - 10;
 		const int listHeight = max(100, listBottom - listTop);
@@ -520,8 +481,6 @@ namespace
 
 		const int baseLabelWidth = 145;
 		const int baseInputWidth = 120;
-		const int articleLabelWidth = 145;
-		const int articleInputWidth = 180;
 		HWND basePriceLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_BASE_PRICE + 100);
 		if (basePriceLabel != nullptr)
 		{
@@ -531,17 +490,6 @@ namespace
 		if (state->basePriceInput != nullptr)
 		{
 			MoveWindow(state->basePriceInput, margin + baseLabelWidth + 6, baseInputTop, baseInputWidth, inputHeight, TRUE);
-		}
-
-		HWND articleNumberLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_ARTICLE_NUMBER + 100);
-		if (articleNumberLabel != nullptr)
-		{
-			MoveWindow(articleNumberLabel, margin, articleInputTop, articleLabelWidth, inputHeight, TRUE);
-		}
-
-		if (state->articleNumberInput != nullptr)
-		{
-			MoveWindow(state->articleNumberInput, margin + articleLabelWidth + 6, articleInputTop, articleInputWidth, inputHeight, TRUE);
 		}
 
 		HWND listLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_PRODUCT_TEXT);
@@ -603,26 +551,15 @@ namespace
 
 		const int nameLabelWidth = 60;
 		const int nameInputLeft = margin + nameLabelWidth + 2;
-		const int optionArticleGap = 8;
-		const int optionArticleLabelWidth = 72;
-		const int optionArticleInputGap = 8;
-		const int optionArticleInputWidth = 90;
 		const int priceGap = 8;
 		const int priceLabelWidth = 110;
 		const int priceInputGap = 10;
 		const int priceInputWidth = 90;
 		const int buttonGap = 8;
 		const int totalRightControlsWidth =
-<<<<<<< HEAD
-			optionArticleGap + optionArticleLabelWidth + optionArticleInputGap + optionArticleInputWidth +
-			priceGap + priceLabelWidth + priceInputGap + priceInputWidth +
-			buttonGap + smallButtonWidth + buttonGap + smallButtonWidth + buttonGap + smallButtonWidth;
-		const int nameWidth = max(100, min(190, availableWidth - (nameInputLeft - margin) - totalRightControlsWidth));
-=======
 			priceGap + priceLabelWidth + priceInputGap + priceInputWidth +
 			buttonGap + smallButtonWidth + buttonGap + smallButtonWidth + buttonGap + smallButtonWidth;
 		const int nameWidth = max(120, min(220, availableWidth - (nameInputLeft - margin) - totalRightControlsWidth));
->>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 
 		HWND nameLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_NAME + 100);
 		if (nameLabel != nullptr)
@@ -635,20 +572,7 @@ namespace
 			MoveWindow(state->optionNameInput, nameInputLeft, optionInputTop, nameWidth, inputHeight, TRUE);
 		}
 
-		const int articleLabelLeft = nameInputLeft + nameWidth + optionArticleGap;
-		HWND articleLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_ARTICLE_NUMBER + 100);
-		if (articleLabel != nullptr)
-		{
-			MoveWindow(articleLabel, articleLabelLeft, optionInputTop, optionArticleLabelWidth, inputHeight, TRUE);
-		}
-
-		const int articleInputLeft = articleLabelLeft + optionArticleLabelWidth + optionArticleInputGap;
-		if (state->optionArticleNumberInput != nullptr)
-		{
-			MoveWindow(state->optionArticleNumberInput, articleInputLeft, optionInputTop, optionArticleInputWidth, inputHeight, TRUE);
-		}
-
-		const int priceLabelLeft = articleInputLeft + optionArticleInputWidth + priceGap;
+		const int priceLabelLeft = nameInputLeft + nameWidth + priceGap;
 		HWND priceLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_PRICE + 100);
 		if (priceLabel != nullptr)
 		{
@@ -786,19 +710,6 @@ namespace
 		return true;
 	}
 
-	std::wstring NormalizeArticleNumber(const std::wstring& rawValue)
-	{
-		const size_t first = rawValue.find_first_not_of(L" \t\r\n");
-		if (first == std::wstring::npos)
-		{
-			return L"-";
-		}
-
-		const size_t last = rawValue.find_last_not_of(L" \t\r\n");
-		const std::wstring trimmed = rawValue.substr(first, last - first + 1);
-		return trimmed.empty() ? L"-" : trimmed;
-	}
-
 	void ApplySelectedOptionQuantity(HWND hWnd, EditWindowState* state)
 	{
 		if (state == nullptr || state->optionListControl == nullptr || state->optionQuantityInput == nullptr || !ShouldShowQuantityEditor(state))
@@ -840,7 +751,7 @@ namespace
 	// Aktualisiert die ListBox und setzt den Fokus zurück auf den Namen-Eingabe.
 	void AddOptionFromInput(HWND hWnd, EditWindowState* state)
 	{
-		if (state == nullptr || state->optionNameInput == nullptr || state->optionArticleNumberInput == nullptr || state->optionPriceInput == nullptr)
+		if (state == nullptr || state->optionNameInput == nullptr || state->optionPriceInput == nullptr)
 		{
 			return;
 		}
@@ -854,10 +765,6 @@ namespace
 			return;
 		}
 
-		wchar_t articleNumberBuffer[256] = {};
-		GetWindowTextW(state->optionArticleNumberInput, articleNumberBuffer, static_cast<int>(std::size(articleNumberBuffer)));
-		const std::wstring articleNumber = NormalizeArticleNumber(articleNumberBuffer);
-
 		double price = 0.0;
 		if (!TryReadPrice(state->optionPriceInput, price))
 		{
@@ -865,10 +772,9 @@ namespace
 			return;
 		}
 
-		state->model.options.push_back(ProductOption{ name, articleNumber, price });
+		state->model.options.push_back(ProductOption{ name, price });
 		RefreshOptionList(state);
 		SetWindowTextW(state->optionNameInput, L"");
-		SetWindowTextW(state->optionArticleNumberInput, L"-");
 		// Der Preis wird bewusst auf 0 zurückgesetzt, damit neue Optionen
 		// nicht versehentlich mit einem vorherigen Preis angelegt werden.
 		SetWindowTextW(state->optionPriceInput, L"0");
@@ -877,11 +783,7 @@ namespace
 
 	void UpdateSelectedOptionFromInput(HWND hWnd, EditWindowState* state)
 	{
-<<<<<<< HEAD
-		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionArticleNumberInput == nullptr || state->optionPriceInput == nullptr)
-=======
 		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionPriceInput == nullptr)
->>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		{
 			return;
 		}
@@ -908,13 +810,6 @@ namespace
 			return;
 		}
 
-<<<<<<< HEAD
-		wchar_t articleNumberBuffer[256] = {};
-		GetWindowTextW(state->optionArticleNumberInput, articleNumberBuffer, static_cast<int>(std::size(articleNumberBuffer)));
-		const std::wstring articleNumber = NormalizeArticleNumber(articleNumberBuffer);
-
-=======
->>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		double price = 0.0;
 		if (!TryReadPrice(state->optionPriceInput, price))
 		{
@@ -923,10 +818,6 @@ namespace
 		}
 
 		state->model.options[selectedIndex].name = name;
-<<<<<<< HEAD
-		state->model.options[selectedIndex].articleNumber = articleNumber;
-=======
->>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		state->model.options[selectedIndex].price = price;
 		RefreshOptionList(state);
 		SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(selectedIndex), 0);
@@ -1009,17 +900,6 @@ namespace
 		}
 
 		state->model.basePrice = basePrice;
-		if (state->articleNumberInput != nullptr)
-		{
-			wchar_t articleNumberBuffer[256] = {};
-			GetWindowTextW(state->articleNumberInput, articleNumberBuffer, static_cast<int>(std::size(articleNumberBuffer)));
-			state->model.articleNumber = NormalizeArticleNumber(articleNumberBuffer);
-		}
-		else
-		{
-			state->model.articleNumber = L"-";
-		}
-
 		const std::string jsonText = BuildProductJson(state->model);
 		if (!TrySaveProductJsonText(state->productFolderPath, jsonText))
 		{
@@ -1053,9 +933,7 @@ namespace
 			const HINSTANCE appInstance = GetModuleHandleW(nullptr);
 			const std::wstring currency = GetCurrentCurrency();
 			const std::wstring basePriceLabelText = L"Basispreis (" + currency + L"):";
-			const std::wstring articleNumberLabelText = L"Artikelnummer:";
 			const std::wstring optionsLabelText = L"Optionen (" + currency + L")";
-			const std::wstring optionArticleNumberLabelText = L"Art.-Nr.:";
 			const std::wstring optionPriceLabelText = L"Preis (" + currency + L"):";
 
 			// Erstellt das Label und Eingabefeld für den Basispreis.
@@ -1084,34 +962,6 @@ namespace
 				0,
 				hWnd,
 				reinterpret_cast<HMENU>(IDC_EDIT_BASE_PRICE),
-				appInstance,
-				nullptr);
-
-			CreateWindowExW(
-				0,
-				L"STATIC",
-				articleNumberLabelText.c_str(),
-				WS_CHILD | WS_VISIBLE,
-				0,
-				0,
-				0,
-				0,
-				hWnd,
-				reinterpret_cast<HMENU>(IDC_EDIT_ARTICLE_NUMBER + 100),
-				appInstance,
-				nullptr);
-
-			state->articleNumberInput = CreateWindowExW(
-				WS_EX_CLIENTEDGE,
-				L"EDIT",
-				L"-",
-				WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT,
-				0,
-				0,
-				0,
-				0,
-				hWnd,
-				reinterpret_cast<HMENU>(IDC_EDIT_ARTICLE_NUMBER),
 				appInstance,
 				nullptr);
 
@@ -1212,34 +1062,6 @@ namespace
 				0,
 				hWnd,
 				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_NAME),
-				appInstance,
-				nullptr);
-
-			CreateWindowExW(
-				0,
-				L"STATIC",
-				optionArticleNumberLabelText.c_str(),
-				WS_CHILD | WS_VISIBLE,
-				0,
-				0,
-				0,
-				0,
-				hWnd,
-				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_ARTICLE_NUMBER + 100),
-				appInstance,
-				nullptr);
-
-			state->optionArticleNumberInput = CreateWindowExW(
-				WS_EX_CLIENTEDGE,
-				L"EDIT",
-				L"-",
-				WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT,
-				0,
-				0,
-				0,
-				0,
-				hWnd,
-				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_ARTICLE_NUMBER),
 				appInstance,
 				nullptr);
 
@@ -1430,10 +1252,6 @@ namespace
 				{
 					const std::wstring basePriceText = ToWideStringLocal(FormatJsonNumberLocal(state->model.basePrice));
 					SetWindowTextW(state->basePriceInput, basePriceText.c_str());
-				}
-				if (state->articleNumberInput != nullptr)
-				{
-					SetWindowTextW(state->articleNumberInput, state->model.articleNumber.c_str());
 				}
 				RefreshOptionList(state);
 			}
