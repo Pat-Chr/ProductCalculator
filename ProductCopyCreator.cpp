@@ -2,6 +2,7 @@
 #include "ProductCopyCreator.h"
 #include "Resource.h"
 #include "ProductDataDirectoryResolver.h"
+#include "AppLocalization.h"
 
 #include <cwctype>
 #include <filesystem>
@@ -17,6 +18,12 @@ namespace
 		std::wstring dialogTitle;
 		std::wstring initialName;
 	};
+
+	std::wstring UiText(const std::wstring& key, const std::wstring& fallback)
+	{
+		AppLocalization::SetLanguageFromSettings(g_appSettings);
+		return AppLocalization::Text(key, fallback);
+	}
 
 	std::wstring Trim(const std::wstring& value)
 	{
@@ -213,6 +220,9 @@ namespace
 				}
 			}
 
+			SetWindowTextW(GetDlgItem(hDlg, IDC_NEW_PRODUCT_LABEL), UiText(L"new_product.label.name", L"Produktname:").c_str());
+			SetWindowTextW(GetDlgItem(hDlg, IDOK), UiText(L"common.ok", L"OK").c_str());
+			SetWindowTextW(GetDlgItem(hDlg, IDCANCEL), UiText(L"common.cancel", L"Abbrechen").c_str());
 			SendDlgItemMessageW(hDlg, IDC_NEW_PRODUCT_NAME, EM_LIMITTEXT, 120, 0);
 			SetFocus(GetDlgItem(hDlg, IDC_NEW_PRODUCT_NAME));
 			SendDlgItemMessageW(hDlg, IDC_NEW_PRODUCT_NAME, EM_SETSEL, 0, -1);
@@ -229,7 +239,7 @@ namespace
 				const std::wstring enteredName = Trim(buffer);
 				if (enteredName.empty())
 				{
-					MessageBoxW(hDlg, L"Bitte einen Produktnamen eingeben.", L"Produkt kopieren", MB_OK | MB_ICONINFORMATION);
+					MessageBoxW(hDlg, UiText(L"copy_product.message.enter_name", L"Bitte einen Produktnamen eingeben.").c_str(), UiText(L"copy_product.title", L"Produkt kopieren").c_str(), MB_OK | MB_ICONINFORMATION);
 					return TRUE;
 				}
 
@@ -261,8 +271,8 @@ namespace
 	{
 		ProductCopyDialogState state;
 		state.productName = &copiedProductName;
-		state.dialogTitle = L"Produkt kopieren";
-		state.initialName = sourceProductName + L" Kopie";
+		state.dialogTitle = UiText(L"copy_product.title", L"Produkt kopieren");
+		state.initialName = sourceProductName + L" " + UiText(L"copy_product.suffix", L"Kopie");
 
 		const INT_PTR dialogResult = DialogBoxParamW(
 			GetModuleHandleW(nullptr),
@@ -295,7 +305,7 @@ ProductCopyStatus CopyExistingProductWithNewName(HWND ownerWindow, const std::fi
 	const std::wstring folderName = SanitizeFolderName(enteredProductName);
 	if (folderName.empty())
 	{
-		MessageBoxW(ownerWindow, L"Der Produktname enthält keine gültigen Zeichen für einen Ordnernamen.", L"Produkt kopieren", MB_OK | MB_ICONERROR);
+		MessageBoxW(ownerWindow, UiText(L"copy_product.message.invalid_folder_name", L"Der Produktname enthält keine gültigen Zeichen für einen Ordnernamen.").c_str(), UiText(L"copy_product.title", L"Produkt kopieren").c_str(), MB_OK | MB_ICONERROR);
 		return ProductCopyStatus::Failed;
 	}
 
@@ -309,7 +319,7 @@ ProductCopyStatus CopyExistingProductWithNewName(HWND ownerWindow, const std::fi
 	std::error_code existsError;
 	if (std::filesystem::exists(candidatePath, existsError))
 	{
-		MessageBoxW(ownerWindow, L"Ein Produkt mit diesem Namen existiert bereits.", L"Produkt kopieren", MB_OK | MB_ICONINFORMATION);
+		MessageBoxW(ownerWindow, UiText(L"copy_product.message.already_exists", L"Ein Produkt mit diesem Namen existiert bereits.").c_str(), UiText(L"copy_product.title", L"Produkt kopieren").c_str(), MB_OK | MB_ICONINFORMATION);
 		return ProductCopyStatus::Failed;
 	}
 

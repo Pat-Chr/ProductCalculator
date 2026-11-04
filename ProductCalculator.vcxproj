@@ -143,10 +143,12 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AppLocalization.h" />
     <ClInclude Include="AppSettingsStore.h" />
     <ClInclude Include="EditProductWindow.h" />
     <ClInclude Include="EasterEggClickTracker.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="LanguageStore.h" />
     <ClInclude Include="NewProductCreator.h" />
     <ClInclude Include="ProductCopyCreator.h" />
     <ClInclude Include="ProductDeletion.h" />
@@ -161,6 +163,7 @@
     <ClCompile Include="AppSettingsStore.cpp" />
     <ClCompile Include="EditProductWindow.cpp" />
     <ClCompile Include="EasterEggClickTracker.cpp" />
+    <ClCompile Include="LanguageStore.cpp" />
     <ClCompile Include="NewProductCreator.cpp" />
     <ClCompile Include="ProductCopyCreator.cpp" />
     <ClCompile Include="ProductCalculator.cpp" />
@@ -180,6 +183,8 @@
   <ItemGroup>
     <None Include="ARCHITECTURE.md" />
     <None Include="CHANGELOG.md" />
+    <None Include="languages\de.json" />
+    <None Include="languages\en.json" />
     <None Include="productdata\\exampleproduct\\product.json" />
     <None Include="productdata\README_Products.md" />
     <None Include="README.md" />
@@ -207,6 +212,3 @@ powershell -Command "&amp;{ $files = Get-ChildItem '$(OutDir)' -File | Select-Ob
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
-
-
-

@@ -1,5 +1,6 @@
 #include "framework.h"
 #include "ProductCalculator.h"
+#include "AppLocalization.h"
 
 #include <filesystem>
 #include <sstream>
@@ -8,6 +9,12 @@
 namespace
 {
 	std::wstring g_summaryWindowText;
+
+	std::wstring UiText(const std::wstring& key, const std::wstring& fallback)
+	{
+		AppLocalization::SetLanguageFromSettings(g_appSettings);
+		return AppLocalization::Text(key, fallback);
+	}
 
 	std::wstring GetSelectedProductDisplayName()
 	{
@@ -29,7 +36,7 @@ namespace
 			}
 		}
 
-		return L"(kein Produkt)";
+		return UiText(L"summary.no_product", L"(kein Produkt)");
 	}
 
 	// Builds the exportable text in a stable, line-based format.
@@ -38,9 +45,9 @@ namespace
 	{
 		std::wostringstream out;
 		out << L"" << GetSelectedProductDisplayName() << L"\r\n";
-		out << L"Artikelnummer: " << g_currentConfiguration.articleNumber << L"\r\n";
-		out << L"Basispreis: " << FormatPrice(g_currentConfiguration.basePrice) << L"\r\n";
-		out << L"\r\nOptionen:\r\n";
+		out << UiText(L"common.article_number", L"Artikelnummer") << L": " << g_currentConfiguration.articleNumber << L"\r\n";
+		out << UiText(L"main.label.base_price", L"Basispreis") << L": " << FormatPrice(g_currentConfiguration.basePrice) << L"\r\n";
+		out << L"\r\n" << UiText(L"summary.options", L"Optionen") << L":\r\n";
 
 		double total = g_currentConfiguration.basePrice;
 
@@ -59,12 +66,12 @@ namespace
 			const std::wstring optionArticleNumber = option.articleNumber.empty() ? L"-" : option.articleNumber;
 			out << L" - " << quantity
 				<< L"x " << option.name
-				<< L" (Art.-Nr.: " << optionArticleNumber << L")"
+				<< L" (" << UiText(L"common.article_number_short", L"Art.-Nr.") << L": " << optionArticleNumber << L")"
 				<< L": " << FormatPrice(lineTotal)
 				<< L"\r\n";
 		}
 
-		out << L"\r\nGesamtpreis: " << FormatPrice(total) << L"\r\n";
+		out << L"\r\n" << UiText(L"main.label.total_price", L"Endpreis") << L": " << FormatPrice(total) << L"\r\n";
 		return out.str();
 	}
 
@@ -81,19 +88,19 @@ namespace
 				hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_EDIT), hInst, nullptr);
 
 			CreateWindowExW(
-				0, L"BUTTON", L"Projekt speichern",
+				0, L"BUTTON", UiText(L"project.button.save", L"Projekt speichern").c_str(),
 				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
 				12, 440, 190, 32,
 				hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_SAVE_PROJECT), hInst, nullptr);
 
 			CreateWindowExW(
-				0, L"BUTTON", L"Kopieren",
+				0, L"BUTTON", UiText(L"summary.button.copy", L"Kopieren").c_str(),
 				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
 				180, 440, 120, 32,
 				hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_COPY), hInst, nullptr);
 
 			CreateWindowExW(
-				0, L"BUTTON", L"Schließen",
+				0, L"BUTTON", UiText(L"summary.button.close", L"Schließen").c_str(),
 				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
 				612, 440, 120, 32,
 				hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_CLOSE), hInst, nullptr);
@@ -233,7 +240,7 @@ void ShowSummaryWindow(HWND hParent)
 	HWND hSummary = CreateWindowExW(
 		WS_EX_DLGMODALFRAME,
 		L"ProductSummaryWindowClass",
-		L"Produktübersicht",
+		UiText(L"summary.title", L"Produktübersicht").c_str(),
 		WS_OVERLAPPEDWINDOW | WS_VISIBLE,
 		CW_USEDEFAULT, CW_USEDEFAULT, 760, 520,
 		hParent,

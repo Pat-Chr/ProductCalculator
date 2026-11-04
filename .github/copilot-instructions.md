@@ -8,6 +8,7 @@
 - Produkt- und Optionsdaten unterstützen `artikelnummer`; fehlende oder leere Werte werden als `"-"` gespeichert.
 - `settings.json` soll erweiterbar bleiben: unbekannte Top-Level-Einträge werden beim Speichern erhalten, damit neue Optionen später ergänzt werden können.
 - Einstellungen werden über ein eigenes Einstellungsfenster (`SettingsWindow`) bearbeitet, damit später zusätzliche Optionen zentral erweitert werden können.
+- Sprachtexte werden in separaten Dateien unter `languages/<sprachcode>.json` gepflegt; die Auswahl wird in `settings.json` über `sprache` gespeichert (aktuell `de` und `en`).
 
 ## Code Structure
 - Trenne neue Features in eigene .cpp/.h Module für bessere Erweiterbarkeit, anstatt Logik direkt in ProductCalculator.cpp zu implementieren.

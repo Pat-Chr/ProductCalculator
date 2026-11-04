@@ -2,6 +2,7 @@
 #include "NewProductCreator.h"
 #include "Resource.h"
 #include "ProductDataDirectoryResolver.h"
+#include "AppLocalization.h"
 
 #include <cwctype>
 #include <filesystem>
@@ -15,6 +16,12 @@ namespace
 	{
 		std::wstring* productName = nullptr;
 	};
+
+	std::wstring UiText(const std::wstring& key, const std::wstring& fallback)
+	{
+		AppLocalization::SetLanguageFromSettings(g_appSettings);
+		return AppLocalization::Text(key, fallback);
+	}
 
 	std::wstring Trim(const std::wstring& value)
 	{
@@ -161,6 +168,10 @@ namespace
 		case WM_INITDIALOG:
 		{
 			SetWindowLongPtrW(hDlg, GWLP_USERDATA, lParam);
+			SetWindowTextW(hDlg, UiText(L"new_product.title", L"Neues Produkt").c_str());
+			SetWindowTextW(GetDlgItem(hDlg, IDC_NEW_PRODUCT_LABEL), UiText(L"new_product.label.name", L"Produktname:").c_str());
+			SetWindowTextW(GetDlgItem(hDlg, IDOK), UiText(L"common.ok", L"OK").c_str());
+			SetWindowTextW(GetDlgItem(hDlg, IDCANCEL), UiText(L"common.cancel", L"Abbrechen").c_str());
 			SendDlgItemMessageW(hDlg, IDC_NEW_PRODUCT_NAME, EM_LIMITTEXT, 120, 0);
 			SetFocus(GetDlgItem(hDlg, IDC_NEW_PRODUCT_NAME));
 			return FALSE;
@@ -176,7 +187,7 @@ namespace
 				const std::wstring enteredName = Trim(buffer);
 				if (enteredName.empty())
 				{
-					MessageBoxW(hDlg, L"Bitte einen Produktnamen eingeben.", L"Neues Produkt", MB_OK | MB_ICONINFORMATION);
+					MessageBoxW(hDlg, UiText(L"new_product.message.enter_name", L"Bitte einen Produktnamen eingeben.").c_str(), UiText(L"new_product.title", L"Neues Produkt").c_str(), MB_OK | MB_ICONINFORMATION);
 					return TRUE;
 				}
 
@@ -233,7 +244,7 @@ NewProductCreationStatus CreateNewProductFolderWithDefaults(HWND ownerWindow, st
 	const std::wstring folderName = SanitizeFolderName(enteredProductName);
 	if (folderName.empty())
 	{
-		MessageBoxW(ownerWindow, L"Der Produktname enthält keine gültigen Zeichen für einen Ordnernamen.", L"Neues Produkt", MB_OK | MB_ICONERROR);
+		MessageBoxW(ownerWindow, UiText(L"new_product.message.invalid_folder_name", L"Der Produktname enthält keine gültigen Zeichen für einen Ordnernamen.").c_str(), UiText(L"new_product.title", L"Neues Produkt").c_str(), MB_OK | MB_ICONERROR);
 		return NewProductCreationStatus::Failed;
 	}
 
@@ -247,7 +258,7 @@ NewProductCreationStatus CreateNewProductFolderWithDefaults(HWND ownerWindow, st
 	std::error_code existsError;
 	if (std::filesystem::exists(candidatePath, existsError))
 	{
-		MessageBoxW(ownerWindow, L"Ein Produkt mit diesem Namen existiert bereits.", L"Neues Produkt", MB_OK | MB_ICONINFORMATION);
+		MessageBoxW(ownerWindow, UiText(L"new_product.message.already_exists", L"Ein Produkt mit diesem Namen existiert bereits.").c_str(), UiText(L"new_product.title", L"Neues Produkt").c_str(), MB_OK | MB_ICONINFORMATION);
 		return NewProductCreationStatus::Failed;
 	}
 

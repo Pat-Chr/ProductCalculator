@@ -16,9 +16,6 @@
     <Filter Include="productdata">
       <UniqueIdentifier>{A99189A0-B877-4865-8590-25B760ADDCB8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="productdata\\exampleproduct">
-      <UniqueIdentifier>{C6774608-B9CF-4D38-B6EF-086E47495957}</UniqueIdentifier>
-    </Filter>
     <Filter Include="docs">
       <UniqueIdentifier>{E1B1A0D1-86A7-40EC-B193-73FA6319F387}</UniqueIdentifier>
     </Filter>
@@ -66,6 +63,12 @@
     <ClInclude Include="SettingsWindow.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="LanguageStore.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="AppLocalization.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ProductCalculator.cpp">
@@ -101,6 +104,9 @@
     <ClCompile Include="SettingsWindow.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="LanguageStore.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ProductCalculator.rc">
@@ -119,21 +125,14 @@
     <None Include="README.md" />
     <None Include="LICENSE.txt" />
     <None Include="ARCHITECTURE.md" />
-    <None Include="productdata\\README_Produkte.md">
-      <Filter>productdata</Filter>
-    </None>
-    <None Include="productdata\\exampleproduct\\product.json">
-      <Filter>productdata\\exampleproduct</Filter>
-    </None>
     <None Include="settings.json" />
     <None Include="CHANGELOG.md" />
     <None Include="docs\images\productcalculator-screenshot.png.png">
       <Filter>docs\images</Filter>
     </None>
+    <None Include="productdata\\exampleproduct\\product.json" />
+    <None Include="productdata\README_Products.md" />
+    <None Include="languages\de.json" />
+    <None Include="languages\en.json" />
   </ItemGroup>
 </Project>
-
-
-
-
-

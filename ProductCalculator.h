@@ -28,6 +28,7 @@ struct ProductConfiguration
 struct AppSettings
 {
     std::wstring standardwaehrung = L"CHF";
+    std::wstring sprache = L"de";
     std::map<std::wstring, std::wstring> additionalRawJsonValues;
 };
 
@@ -36,6 +37,7 @@ extern HWND g_hProductDropdown;
 extern std::vector<HWND> g_optionQuantityInputs;
 extern std::wstring g_selectedProductPath;
 extern ProductConfiguration g_currentConfiguration;
+extern AppSettings g_appSettings;
 
 std::wstring FormatPrice(double value);
 std::wstring GetCurrentCurrency();

@@ -1,15 +1,24 @@
 #include "framework.h"
 #include "ProjectPersistence.h"
+#include "ProductCalculator.h"
+#include "AppLocalization.h"
 
 #include <algorithm>
 #include <array>
 #include <ctime>
 #include <fstream>
 #include <sstream>
+#include <vector>
 #include <commdlg.h>
 
 namespace
 {
+	std::wstring UiText(const std::wstring& key, const std::wstring& fallback)
+	{
+		AppLocalization::SetLanguageFromSettings(g_appSettings);
+		return AppLocalization::Text(key, fallback);
+	}
+
 	std::wstring SanitizeFileName(std::wstring name)
 	{
 		const std::wstring invalidChars = L"\\/:*?\"<>|";
@@ -23,15 +32,35 @@ namespace
 
 		if (name.empty())
 		{
-			name = L"projekt";
+			name = UiText(L"project.default_name", L"projekt");
 		}
 
 		return name;
 	}
 
+	std::vector<wchar_t> BuildProjectFileDialogFilter()
+	{
+		const std::wstring projectFilesLabel = UiText(L"project.file_dialog.project_files", L"Projektdateien") + L" (*.pcproj)";
+		const std::wstring allFilesLabel = UiText(L"project.file_dialog.all_files", L"Alle Dateien") + L" (*.*)";
+
+		std::vector<wchar_t> filter;
+		auto appendFilter = [&filter](const std::wstring& label, const std::wstring& pattern)
+			{
+				filter.insert(filter.end(), label.begin(), label.end());
+				filter.push_back(L'\0');
+				filter.insert(filter.end(), pattern.begin(), pattern.end());
+				filter.push_back(L'\0');
+			};
+
+		appendFilter(projectFilesLabel, L"*.pcproj");
+		appendFilter(allFilesLabel, L"*.*");
+		filter.push_back(L'\0');
+		return filter;
+	}
+
 	std::wstring BuildDefaultFileName(const SavedProjectData& data)
 	{
-		std::wstring baseName = L"projekt";
+		std::wstring baseName = UiText(L"project.default_name", L"projekt");
 		if (!data.productName.empty())
 		{
 			baseName = data.productName;
@@ -265,12 +294,12 @@ bool SaveProjectDataWithDialog(HWND hOwner, const SavedProjectData& data, std::w
 	const std::wstring initialDirectoryPath = savedProjectsDirectory.wstring();
 	wcsncpy_s(initialDirectory.data(), initialDirectory.size(), initialDirectoryPath.c_str(), _TRUNCATE);
 
-	wchar_t filter[] = L"Projektdateien (*.pcproj)\0*.pcproj\0Alle Dateien (*.*)\0*.*\0\0";
+	std::vector<wchar_t> filter = BuildProjectFileDialogFilter();
 
 	OPENFILENAMEW ofn = {};
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = hOwner;
-	ofn.lpstrFilter = filter;
+	ofn.lpstrFilter = filter.data();
 	ofn.lpstrFile = fileNameBuffer.data();
 	ofn.nMaxFile = static_cast<DWORD>(fileNameBuffer.size());
 	ofn.lpstrInitialDir = initialDirectory.data();
@@ -307,12 +336,12 @@ bool LoadProjectDataWithDialog(HWND hOwner, SavedProjectData& data, std::wstring
 	const std::wstring initialDirectoryPath = savedProjectsDirectory.wstring();
 	wcsncpy_s(initialDirectory.data(), initialDirectory.size(), initialDirectoryPath.c_str(), _TRUNCATE);
 
-	wchar_t filter[] = L"Projektdateien (*.pcproj)\0*.pcproj\0Alle Dateien (*.*)\0*.*\0\0";
+	std::vector<wchar_t> filter = BuildProjectFileDialogFilter();
 
 	OPENFILENAMEW ofn = {};
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = hOwner;
-	ofn.lpstrFilter = filter;
+	ofn.lpstrFilter = filter.data();
 	ofn.lpstrFile = fileNameBuffer.data();
 	ofn.nMaxFile = static_cast<DWORD>(fileNameBuffer.size());
 	ofn.lpstrInitialDir = initialDirectory.data();

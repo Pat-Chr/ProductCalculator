@@ -420,6 +420,9 @@ namespace
 		const std::string currencyUtf8 = ToUtf8String(settings.standardwaehrung);
 		values[L"standardwaehrung"] = ToWideString(std::string("\"") + EscapeJsonString(currencyUtf8) + "\"");
 
+		const std::string languageUtf8 = ToUtf8String(settings.sprache);
+		values[L"sprache"] = ToWideString(std::string("\"") + EscapeJsonString(languageUtf8) + "\"");
+
 		std::string output = "{\n";
 		bool first = true;
 		for (const auto& entry : values)
@@ -480,6 +483,16 @@ bool LoadAppSettings(AppSettings& settings)
 			if (TryParseJsonStringLiteral(entry.second, parsedCurrency) && !parsedCurrency.empty())
 			{
 				settings.standardwaehrung = parsedCurrency;
+			}
+			continue;
+		}
+
+		if (_wcsicmp(entry.first.c_str(), L"sprache") == 0)
+		{
+			std::wstring parsedLanguage;
+			if (TryParseJsonStringLiteral(entry.second, parsedLanguage) && !parsedLanguage.empty())
+			{
+				settings.sprache = parsedLanguage;
 			}
 			continue;
 		}

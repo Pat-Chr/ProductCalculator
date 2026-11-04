@@ -2,6 +2,7 @@
 #include "EditProductWindow.h"
 #include "ProductCalculator.h"
 #include "Resource.h"
+#include "AppLocalization.h"
 
 #include <filesystem>
 #include <fstream>
@@ -71,6 +72,12 @@ namespace
 		bool showProductSaveButton = true;	// Visibility of the product-save button
 		ProductEditorModel model;			// Current product model data
 	};
+
+	std::wstring UiText(const std::wstring& key, const std::wstring& fallback)
+	{
+		AppLocalization::SetLanguageFromSettings(g_appSettings);
+		return AppLocalization::Text(key, fallback);
+	}
 
 	// Converts a UTF-8 string to a wide string.
 	// Falls back to the local code page if UTF-8 does not work.
@@ -806,21 +813,21 @@ namespace
 		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
 		if (selected == LB_ERR)
 		{
-			MessageBoxW(hWnd, L"Bitte zuerst eine Option auswählen.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.select_option_first", L"Bitte zuerst eine Option auswählen.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
 		int quantity = 0;
 		if (!TryReadQuantity(state->optionQuantityInput, quantity))
 		{
-			MessageBoxW(hWnd, L"Bitte eine gültige Menge (0 oder größer) eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.invalid_quantity", L"Bitte eine gültige Menge (0 oder größer) eingeben.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
 		const size_t selectedIndex = static_cast<size_t>(selected);
 		if (selectedIndex >= g_optionQuantityInputs.size() || g_optionQuantityInputs[selectedIndex] == nullptr)
 		{
-			MessageBoxW(hWnd, L"Die Menge kann für diese Option aktuell nicht gesetzt werden.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.quantity_not_available", L"Die Menge kann für diese Option aktuell nicht gesetzt werden.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
@@ -847,7 +854,7 @@ namespace
 		std::wstring name = nameBuffer;
 		if (name.empty())
 		{
-			MessageBoxW(hWnd, L"Bitte einen Optionsnamen eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.enter_option_name", L"Bitte einen Optionsnamen eingeben.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
@@ -858,7 +865,7 @@ namespace
 		double price = 0.0;
 		if (!TryReadPrice(state->optionPriceInput, price))
 		{
-			MessageBoxW(hWnd, L"Bitte einen gültigen Preis eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.invalid_option_price", L"Bitte einen gültigen Preis eingeben.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
@@ -882,7 +889,7 @@ namespace
 		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
 		if (selected == LB_ERR)
 		{
-			MessageBoxW(hWnd, L"Bitte zuerst eine Option auswählen.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.select_option_first", L"Bitte zuerst eine Option auswählen.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
@@ -897,7 +904,7 @@ namespace
 		std::wstring name = nameBuffer;
 		if (name.empty())
 		{
-			MessageBoxW(hWnd, L"Bitte einen Optionsnamen eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.enter_option_name", L"Bitte einen Optionsnamen eingeben.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
@@ -908,7 +915,7 @@ namespace
 		double price = 0.0;
 		if (!TryReadPrice(state->optionPriceInput, price))
 		{
-			MessageBoxW(hWnd, L"Bitte einen gültigen Preis eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.invalid_option_price", L"Bitte einen gültigen Preis eingeben.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
@@ -934,7 +941,7 @@ namespace
 		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
 		if (selected == LB_ERR)
 		{
-			MessageBoxW(hWnd, L"Bitte zuerst eine Option auswählen.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.select_option_first", L"Bitte zuerst eine Option auswählen.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
@@ -960,7 +967,7 @@ namespace
 		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
 		if (selected == LB_ERR)
 		{
-			MessageBoxW(hWnd, L"Bitte zuerst eine Option auswählen.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.select_option_first", L"Bitte zuerst eine Option auswählen.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
@@ -991,7 +998,7 @@ namespace
 		double basePrice = 0.0;
 		if (!TryReadPrice(state->basePriceInput, basePrice))
 		{
-			MessageBoxW(hWnd, L"Bitte einen gültigen Basispreis eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			MessageBoxW(hWnd, UiText(L"edit.message.invalid_base_price", L"Bitte einen gültigen Basispreis eingeben.").c_str(), UiText(L"common.notice", L"Hinweis").c_str(), MB_OK | MB_ICONINFORMATION);
 			return;
 		}
 
@@ -1010,7 +1017,7 @@ namespace
 		const std::string jsonText = BuildProductJson(state->model);
 		if (!TrySaveProductJsonText(state->productFolderPath, jsonText))
 		{
-			MessageBoxW(hWnd, L"Produktdaten konnten nicht gespeichert werden.", L"Fehler", MB_OK | MB_ICONERROR);
+			MessageBoxW(hWnd, UiText(L"edit.message.product_save_failed", L"Produktdaten konnten nicht gespeichert werden.").c_str(), UiText(L"common.error", L"Fehler").c_str(), MB_OK | MB_ICONERROR);
 			return;
 		}
 
@@ -1021,7 +1028,7 @@ namespace
 			SendMessageW(state->ownerWindow, WM_PRODUCT_CONFIGURATION_UPDATED, 0, 0);
 		}
 
-		MessageBoxW(hWnd, L"Produkt wurde gespeichert und aktualisiert.", L"Produkt bearbeiten", MB_OK | MB_ICONINFORMATION);
+		MessageBoxW(hWnd, UiText(L"edit.message.product_saved", L"Produkt wurde gespeichert und aktualisiert.").c_str(), UiText(L"main.button.edit_product", L"Produkt bearbeiten").c_str(), MB_OK | MB_ICONINFORMATION);
 	}
 
 	// Message dispatcher for the edit window.
@@ -1039,11 +1046,11 @@ namespace
 			SetWindowLongPtrW(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
 			const HINSTANCE appInstance = GetModuleHandleW(nullptr);
 			const std::wstring currency = GetCurrentCurrency();
-			const std::wstring basePriceLabelText = L"Basispreis (" + currency + L"):";
-			const std::wstring articleNumberLabelText = L"Artikelnummer:";
-			const std::wstring optionsLabelText = L"Optionen (" + currency + L")";
-			const std::wstring optionArticleNumberLabelText = L"Art.-Nr.:";
-			const std::wstring optionPriceLabelText = L"Preis (" + currency + L"):";
+			const std::wstring basePriceLabelText = UiText(L"edit.label.base_price", L"Basispreis") + L" (" + currency + L"):";
+			const std::wstring articleNumberLabelText = UiText(L"common.article_number", L"Artikelnummer") + L":";
+			const std::wstring optionsLabelText = UiText(L"summary.options", L"Optionen") + L" (" + currency + L")";
+			const std::wstring optionArticleNumberLabelText = UiText(L"common.article_number_short", L"Art.-Nr.") + L":";
+			const std::wstring optionPriceLabelText = UiText(L"edit.label.price", L"Preis") + L" (" + currency + L"):";
 
 			// Creates the label and input field for the base price.
 			CreateWindowExW(
@@ -1134,7 +1141,7 @@ namespace
 			CreateWindowExW(
 				0,
 				L"STATIC",
-				L"Menge:",
+				(UiText(L"main.label.quantity", L"Anzahl") + L":").c_str(),
 				WS_CHILD | WS_VISIBLE,
 				0,
 				0,
@@ -1162,7 +1169,7 @@ namespace
 			state->applyOptionQuantityButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Menge übernehmen",
+				UiText(L"edit.button.apply_quantity", L"Menge übernehmen").c_str(),
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
 				0,
 				0,
@@ -1177,7 +1184,7 @@ namespace
 			CreateWindowExW(
 				0,
 				L"STATIC",
-				L"Name:",
+				(UiText(L"edit.label.name", L"Name") + L":").c_str(),
 				WS_CHILD | WS_VISIBLE,
 				0,
 				0,
@@ -1263,7 +1270,7 @@ namespace
 			state->addOptionButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Option hinzufügen",
+				UiText(L"edit.button.add_option", L"Option hinzufügen").c_str(),
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
 				0,
 				0,
@@ -1278,7 +1285,7 @@ namespace
 			state->updateOptionButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Option ändern",
+				UiText(L"edit.button.update_option", L"Option ändern").c_str(),
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
 				0,
 				0,
@@ -1293,7 +1300,7 @@ namespace
 			state->removeOptionButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Zeile löschen",
+				UiText(L"edit.button.remove_option", L"Zeile löschen").c_str(),
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
 				0,
 				0,
@@ -1338,7 +1345,7 @@ namespace
 			state->showSummaryButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Kalkulieren",
+				UiText(L"common.button.calculate", L"Kalkulieren").c_str(),
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
 				0,
 				0,
@@ -1357,7 +1364,7 @@ namespace
 			state->saveProjectButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Projekt speichern",
+				UiText(L"project.button.save", L"Projekt speichern").c_str(),
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
 				0,
 				0,
@@ -1376,7 +1383,7 @@ namespace
 			state->saveButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Produkt speichern",
+				UiText(L"edit.button.save_product", L"Produkt speichern").c_str(),
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON,
 				0,
 				0,
@@ -1395,7 +1402,7 @@ namespace
 			state->cancelButton = CreateWindowExW(
 				0,
 				L"BUTTON",
-				L"Schließen",
+				UiText(L"summary.button.close", L"Schließen").c_str(),
 				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
 				0,
 				0,
@@ -1409,7 +1416,7 @@ namespace
 			std::string jsonText;
 			if (!TryLoadProductJsonText(state->productFolderPath, jsonText) || !TryParseProductModel(jsonText, state->model))
 			{
-				MessageBoxW(hWnd, L"Die Produktkonfiguration konnte nicht geladen werden.", L"Fehler", MB_OK | MB_ICONERROR);
+				MessageBoxW(hWnd, UiText(L"error.product_config_load_failed", L"Die Produktkonfiguration konnte nicht geladen werden.").c_str(), UiText(L"common.error", L"Fehler").c_str(), MB_OK | MB_ICONERROR);
 			}
 			else
 			{
@@ -1605,7 +1612,7 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 	g_hEditWindow = CreateWindowExW(
 		WS_EX_APPWINDOW,
 		kEditWindowClass,
-		L"Produkt bearbeiten",
+		UiText(L"main.button.edit_product", L"Produkt bearbeiten").c_str(),
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,

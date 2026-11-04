@@ -9,6 +9,7 @@
 #include "RestoredProductsCleanup.h"
 #include "ProductDataDirectoryResolver.h"
 #include "AppSettingsStore.h"
+#include "AppLocalization.h"
 #include "SettingsWindow.h"
 
 #include <algorithm>
@@ -62,11 +63,115 @@ bool SelectProductByPath(HWND hCombo, const std::wstring& productFolderPath);
 bool TrySelectProductByName(HWND hCombo, const std::wstring& productName);
 bool TryLoadProductJsonUtf8(const std::wstring& productFolderPath, std::string& jsonUtf8);
 bool TryRestoreEmbeddedProduct(const SavedProjectData& data, const std::wstring& loadedFilePath, std::wstring& restoredProductPath);
+std::wstring UiText(const std::wstring& key, const std::wstring& fallback);
+void ApplyMainWindowLocalization(HWND hWnd);
 
 // Resolves the productdata directory and migrates a legacy produktdaten directory when found.
 std::filesystem::path FindProductDataDirectory()
 {
     return FindOrMigrateProductDataDirectory();
+}
+
+std::wstring UiText(const std::wstring& key, const std::wstring& fallback)
+{
+    AppLocalization::SetLanguageFromSettings(g_appSettings);
+    return AppLocalization::Text(key, fallback);
+}
+
+void ApplyMainWindowLocalization(HWND hWnd)
+{
+    if (hWnd != nullptr)
+    {
+        SetWindowTextW(hWnd, UiText(L"app.title", L"ProductCalculator").c_str());
+    }
+
+    if (g_hEditProductButton != nullptr)
+    {
+        SetWindowTextW(g_hEditProductButton, UiText(L"main.button.edit_product", L"Produkt bearbeiten").c_str());
+    }
+    if (g_hCreateProductButton != nullptr)
+    {
+        SetWindowTextW(g_hCreateProductButton, UiText(L"main.button.new_product", L"Neues Produkt").c_str());
+    }
+    if (g_hCopyProductButton != nullptr)
+    {
+        SetWindowTextW(g_hCopyProductButton, UiText(L"main.button.copy_product", L"Produkt kopieren").c_str());
+    }
+    if (g_hDeleteProductButton != nullptr)
+    {
+        SetWindowTextW(g_hDeleteProductButton, UiText(L"main.button.delete_product", L"Produkt löschen").c_str());
+    }
+    if (g_hCalcGroupBox != nullptr)
+    {
+        SetWindowTextW(g_hCalcGroupBox, UiText(L"main.group.calculation", L"Kalkulation").c_str());
+    }
+    if (g_hQuantityHeaderLabel != nullptr)
+    {
+        SetWindowTextW(g_hQuantityHeaderLabel, UiText(L"main.label.quantity", L"Anzahl").c_str());
+    }
+    if (g_hShowSummaryButton != nullptr)
+    {
+        SetWindowTextW(g_hShowSummaryButton, UiText(L"common.button.calculate", L"Kalkulieren").c_str());
+    }
+    if (g_hLoadProjectButton != nullptr)
+    {
+        SetWindowTextW(g_hLoadProjectButton, UiText(L"project.button.load", L"Projekt laden").c_str());
+    }
+    if (g_hSaveProjectButton != nullptr)
+    {
+        SetWindowTextW(g_hSaveProjectButton, UiText(L"project.button.save", L"Projekt speichern").c_str());
+    }
+
+    if (g_hBasePriceLabel != nullptr)
+    {
+        if (!g_selectedProductPath.empty())
+        {
+            const std::wstring productArticleNumber = g_currentConfiguration.articleNumber.empty() ? L"-" : g_currentConfiguration.articleNumber;
+            const std::wstring baseText = UiText(L"main.label.base_price", L"Basispreis") + L": " + FormatPrice(g_currentConfiguration.basePrice)
+                + L" | " + UiText(L"common.article_number", L"Artikelnummer") + L": " + productArticleNumber;
+            SetWindowTextW(g_hBasePriceLabel, baseText.c_str());
+        }
+        else
+        {
+            const std::wstring baseText = UiText(L"main.label.base_price", L"Basispreis") + L": " + FormatPrice(0.0);
+            SetWindowTextW(g_hBasePriceLabel, baseText.c_str());
+        }
+    }
+
+    if (g_hTotalPriceLabel != nullptr)
+    {
+        const std::wstring totalText = UiText(L"main.label.total_price", L"Endpreis") + L": " + FormatPrice(0.0);
+        SetWindowTextW(g_hTotalPriceLabel, totalText.c_str());
+    }
+
+    HMENU menu = (hWnd != nullptr) ? GetMenu(hWnd) : nullptr;
+    if (menu != nullptr)
+    {
+        HMENU fileMenu = GetSubMenu(menu, 0);
+        HMENU settingsMenu = GetSubMenu(menu, 1);
+        HMENU helpMenu = GetSubMenu(menu, 2);
+
+        if (fileMenu != nullptr)
+        {
+            ModifyMenuW(fileMenu, 0, MF_BYPOSITION | MF_STRING, IDM_EDIT_PRODUCT, UiText(L"menu.file.edit_product", L"Produkt &bearbeiten...").c_str());
+            ModifyMenuW(fileMenu, 2, MF_BYPOSITION | MF_STRING, IDM_EXIT, UiText(L"menu.file.exit", L"&Beenden").c_str());
+            ModifyMenuW(menu, 0, MF_BYPOSITION | MF_POPUP, reinterpret_cast<UINT_PTR>(fileMenu), UiText(L"menu.file", L"&Datei").c_str());
+        }
+
+        if (settingsMenu != nullptr)
+        {
+            ModifyMenuW(settingsMenu, 0, MF_BYPOSITION | MF_STRING, IDM_SETTINGS_CURRENCY, UiText(L"menu.settings.open", L"&Einstellungen öffnen...").c_str());
+            ModifyMenuW(menu, 1, MF_BYPOSITION | MF_POPUP, reinterpret_cast<UINT_PTR>(settingsMenu), UiText(L"menu.settings", L"&Einstellungen").c_str());
+        }
+
+        if (helpMenu != nullptr)
+        {
+            ModifyMenuW(helpMenu, 0, MF_BYPOSITION | MF_STRING, IDM_ABOUT, UiText(L"menu.help.about", L"&Info...").c_str());
+            ModifyMenuW(menu, 2, MF_BYPOSITION | MF_POPUP, reinterpret_cast<UINT_PTR>(helpMenu), UiText(L"menu.help", L"&Hilfe").c_str());
+        }
+
+        DrawMenuBar(hWnd);
+    }
 }
 
 bool SelectProductByPath(HWND hCombo, const std::wstring& productFolderPath)
@@ -364,7 +469,7 @@ void UpdateTotalPriceLabel()
         totalPrice += g_currentConfiguration.options[index].price * quantity;
     }
 
-    const std::wstring totalText = L"Endpreis: " + FormatPrice(totalPrice);
+    const std::wstring totalText = UiText(L"main.label.total_price", L"Endpreis") + L": " + FormatPrice(totalPrice);
     SetWindowTextW(g_hTotalPriceLabel, totalText.c_str());
 }
 
@@ -382,9 +487,9 @@ void RenderProductConfiguration(HWND hWnd)
     {
         ClearDynamicOptionControls();
         g_currentConfiguration = ProductConfiguration{};
-        SetWindowTextW(g_hBasePriceLabel, (L"Basispreis: " + FormatPrice(0.0)).c_str());
-        SetWindowTextW(g_hTotalPriceLabel, (L"Endpreis: " + FormatPrice(0.0)).c_str());
-        MessageBoxW(hWnd, L"Die Produktkonfiguration konnte nicht geladen werden.", L"Fehler", MB_ICONERROR | MB_OK);
+        SetWindowTextW(g_hBasePriceLabel, (UiText(L"main.label.base_price", L"Basispreis") + L": " + FormatPrice(0.0)).c_str());
+        SetWindowTextW(g_hTotalPriceLabel, (UiText(L"main.label.total_price", L"Endpreis") + L": " + FormatPrice(0.0)).c_str());
+        MessageBoxW(hWnd, UiText(L"error.product_config_load_failed", L"Die Produktkonfiguration konnte nicht geladen werden.").c_str(), UiText(L"common.error", L"Fehler").c_str(), MB_ICONERROR | MB_OK);
         return;
     }
 
@@ -392,7 +497,8 @@ void RenderProductConfiguration(HWND hWnd)
     ClearDynamicOptionControls();
 
     const std::wstring productArticleNumber = g_currentConfiguration.articleNumber.empty() ? L"-" : g_currentConfiguration.articleNumber;
-    const std::wstring baseText = L"Basispreis: " + FormatPrice(g_currentConfiguration.basePrice) + L" | Artikelnummer: " + productArticleNumber;
+    const std::wstring baseText = UiText(L"main.label.base_price", L"Basispreis") + L": " + FormatPrice(g_currentConfiguration.basePrice)
+        + L" | " + UiText(L"common.article_number", L"Artikelnummer") + L": " + productArticleNumber;
     SetWindowTextW(g_hBasePriceLabel, baseText.c_str());
 
     // Each option gets its own quantity field; the initial value intentionally stays 0.
@@ -401,7 +507,7 @@ void RenderProductConfiguration(HWND hWnd)
     {
         const ProductOption& option = g_currentConfiguration.options[index];
         const std::wstring optionArticleNumber = option.articleNumber.empty() ? L"-" : option.articleNumber;
-        const std::wstring optionText = option.name + L" | Art.-Nr.: " + optionArticleNumber + L" (+" + FormatPrice(option.price) + L")";
+        const std::wstring optionText = option.name + L" | " + UiText(L"common.article_number_short", L"Art.-Nr.") + L": " + optionArticleNumber + L" (+" + FormatPrice(option.price) + L")";
 
         const int labelWidth = 150;
         const int labelHeight = 20;
@@ -567,7 +673,8 @@ void PopulateProductDropdown(HWND hCombo)
     const std::filesystem::path productDataPath = FindProductDataDirectory();
     if (productDataPath.empty())
     {
-        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Kein productdata-Ordner gefunden"));
+        const std::wstring missingDirectoryText = UiText(L"main.dropdown.no_productdata", L"Kein productdata-Ordner gefunden");
+        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(missingDirectoryText.c_str()));
         EnableWindow(hCombo, FALSE);
         return;
     }
@@ -609,7 +716,8 @@ void PopulateProductDropdown(HWND hCombo)
 
     if (g_productFolderPaths.empty())
     {
-        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Keine gültigen Produktordner vorhanden"));
+        const std::wstring noProductsText = UiText(L"main.dropdown.no_products", L"Keine gültigen Produktordner vorhanden");
+        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(noProductsText.c_str()));
         EnableWindow(hCombo, FALSE);
         return;
     }
@@ -623,7 +731,7 @@ bool SaveCurrentProject(HWND hOwner)
 {
     if (g_selectedProductPath.empty())
     {
-        MessageBoxW(hOwner, L"Bitte wählen Sie zuerst ein Produkt aus.", L"Projekt speichern", MB_OK | MB_ICONINFORMATION);
+        MessageBoxW(hOwner, UiText(L"main.message.select_product_first", L"Bitte wählen Sie zuerst ein Produkt aus.").c_str(), UiText(L"project.save.title", L"Projekt speichern").c_str(), MB_OK | MB_ICONINFORMATION);
         return false;
     }
 
@@ -632,7 +740,7 @@ bool SaveCurrentProject(HWND hOwner)
     data.productName = std::filesystem::path(g_selectedProductPath).filename().wstring();
     if (!TryLoadProductJsonUtf8(g_selectedProductPath, data.productJsonUtf8))
     {
-        MessageBoxW(hOwner, L"Produktdaten konnten nicht gespeichert werden.", L"Projekt speichern", MB_OK | MB_ICONERROR);
+        MessageBoxW(hOwner, UiText(L"project.save.product_data_failed", L"Produktdaten konnten nicht gespeichert werden.").c_str(), UiText(L"project.save.title", L"Projekt speichern").c_str(), MB_OK | MB_ICONERROR);
         return false;
     }
 
@@ -648,7 +756,7 @@ bool SaveCurrentProject(HWND hOwner)
         return false;
     }
 
-    MessageBoxW(hOwner, L"Projekt wurde gespeichert.", L"Projekt speichern", MB_OK | MB_ICONINFORMATION);
+    MessageBoxW(hOwner, UiText(L"project.save.success", L"Projekt wurde gespeichert.").c_str(), UiText(L"project.save.title", L"Projekt speichern").c_str(), MB_OK | MB_ICONINFORMATION);
     return true;
 }
 
@@ -671,7 +779,7 @@ bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner)
         std::wstring restoredProductPath;
         if (!TryRestoreEmbeddedProduct(data, loadedFilePath, restoredProductPath))
         {
-            MessageBoxW(hDialogOwner, L"Die gespeicherte Produktkonfiguration konnte nicht wiederhergestellt werden.", L"Projekt laden", MB_OK | MB_ICONERROR);
+            MessageBoxW(hDialogOwner, UiText(L"project.load.restore_failed", L"Die gespeicherte Produktkonfiguration konnte nicht wiederhergestellt werden.").c_str(), UiText(L"project.load.title", L"Projekt laden").c_str(), MB_OK | MB_ICONERROR);
             return false;
         }
 
@@ -688,7 +796,7 @@ bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner)
 
         if (!TrySelectProductByName(g_hProductDropdown, fallbackProductName))
         {
-            MessageBoxW(hDialogOwner, L"Das gespeicherte Produkt wurde nicht gefunden.", L"Projekt laden", MB_OK | MB_ICONERROR);
+            MessageBoxW(hDialogOwner, UiText(L"project.load.product_not_found", L"Das gespeicherte Produkt wurde nicht gefunden.").c_str(), UiText(L"project.load.title", L"Projekt laden").c_str(), MB_OK | MB_ICONERROR);
             return false;
         }
     }
@@ -709,7 +817,7 @@ bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner)
 
     if (!OpenEditProductWindow(hMainWindow, g_selectedProductPath, true, false))
     {
-        MessageBoxW(hDialogOwner, L"Projekt wurde geladen, aber das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Projekt laden", MB_OK | MB_ICONWARNING);
+        MessageBoxW(hDialogOwner, UiText(L"project.load.edit_window_warning", L"Projekt wurde geladen, aber das Bearbeitungsfenster konnte nicht geöffnet werden.").c_str(), UiText(L"project.load.title", L"Projekt laden").c_str(), MB_OK | MB_ICONWARNING);
     }
 
     return true;
@@ -726,6 +834,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_PRODUCTCALCULATOR, szWindowClass, MAX_LOADSTRING);
     LoadAppSettings(g_appSettings);
+    AppLocalization::SetLanguageFromSettings(g_appSettings);
     MyRegisterClass(hInstance);
 
     if (!InitInstance (hInstance, nCmdShow))
@@ -813,7 +922,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hEditProductButton = CreateWindowExW(
             0,
             L"BUTTON",
-            L"Produkt bearbeiten",
+            UiText(L"main.button.edit_product", L"Produkt bearbeiten").c_str(),
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
             438,
             35,
@@ -827,7 +936,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hCreateProductButton = CreateWindowExW(
             0,
             L"BUTTON",
-            L"Neues Produkt",
+            UiText(L"main.button.new_product", L"Neues Produkt").c_str(),
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
             596,
             35,
@@ -841,7 +950,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hCopyProductButton = CreateWindowExW(
             0,
             L"BUTTON",
-            L"Produkt kopieren",
+            UiText(L"main.button.copy_product", L"Produkt kopieren").c_str(),
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
             754,
             35,
@@ -855,7 +964,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hDeleteProductButton = CreateWindowExW(
             0,
             L"BUTTON",
-            L"Produkt löschen",
+            UiText(L"main.button.delete_product", L"Produkt löschen").c_str(),
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
             912,
             35,
@@ -869,7 +978,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hCalcGroupBox = CreateWindowExW(
             0,
             L"BUTTON",
-            L"Kalkulation",
+            UiText(L"main.group.calculation", L"Kalkulation").c_str(),
             WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
             10,
             75,
@@ -880,8 +989,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             hInst,
             nullptr);
 
-        const std::wstring initialBasePriceText = L"Basispreis: " + FormatPrice(0.0);
-        const std::wstring initialTotalPriceText = L"Endpreis: " + FormatPrice(0.0);
+        const std::wstring initialBasePriceText = UiText(L"main.label.base_price", L"Basispreis") + L": " + FormatPrice(0.0);
+        const std::wstring initialTotalPriceText = UiText(L"main.label.total_price", L"Endpreis") + L": " + FormatPrice(0.0);
 
         g_hBasePriceLabel = CreateWindowExW(
             0,
@@ -900,7 +1009,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_hQuantityHeaderLabel = CreateWindowExW(
             0,
             L"STATIC",
-            L"Anzahl",
+            UiText(L"main.label.quantity", L"Anzahl").c_str(),
             WS_CHILD | WS_VISIBLE,
             20,
             115,
@@ -926,19 +1035,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             nullptr);
 
         g_hShowSummaryButton = CreateWindowExW(
-            0, L"BUTTON", L"Kalkulieren",
+            0, L"BUTTON", UiText(L"common.button.calculate", L"Kalkulieren").c_str(),
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
             0, 0, 160, 28,
             hWnd, reinterpret_cast<HMENU>(IDC_BTN_SHOW_SUMMARY), hInst, nullptr);
 
         g_hLoadProjectButton = CreateWindowExW(
-            0, L"BUTTON", L"Projekt laden",
+            0, L"BUTTON", UiText(L"project.button.load", L"Projekt laden").c_str(),
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
             0, 0, 160, 28,
             hWnd, reinterpret_cast<HMENU>(IDC_SUMMARY_LOAD_PROJECT), hInst, nullptr);
 
         g_hSaveProjectButton = CreateWindowExW(
-            0, L"BUTTON", L"Projekt speichern",
+            0, L"BUTTON", UiText(L"project.button.save", L"Projekt speichern").c_str(),
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
             0, 0, 160, 28,
             hWnd, reinterpret_cast<HMENU>(IDC_MAIN_SAVE_PROJECT), hInst, nullptr);
@@ -953,6 +1062,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
 
         CloseAppButton(hWnd);
+        ApplyMainWindowLocalization(hWnd);
 
         break;
     }
@@ -969,7 +1079,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         if (g_easterEggClickTracker.RegisterClick(GetTickCount64()))
         {
-            MessageBoxW(hWnd, L"Was Wotsch?", L"Ey!", MB_OK | MB_ICONWARNING);
+            MessageBoxW(hWnd, UiText(L"easteregg.message", L"Was Wotsch?").c_str(), UiText(L"easteregg.title", L"Ey!").c_str(), MB_OK | MB_ICONWARNING);
         }
         break;
     }
@@ -1023,13 +1133,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             if (g_selectedProductPath.empty())
             {
-                MessageBoxW(hWnd, L"Bitte wählen Sie zuerst ein Produkt aus.", L"Produkt bearbeiten", MB_OK | MB_ICONINFORMATION);
+                MessageBoxW(hWnd, UiText(L"main.message.select_product_first", L"Bitte wählen Sie zuerst ein Produkt aus.").c_str(), UiText(L"main.button.edit_product", L"Produkt bearbeiten").c_str(), MB_OK | MB_ICONINFORMATION);
                 return 0;
             }
 
             if (!OpenEditProductWindow(hWnd, g_selectedProductPath, false, true))
             {
-                MessageBoxW(hWnd, L"Das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Fehler", MB_OK | MB_ICONERROR);
+                MessageBoxW(hWnd, UiText(L"error.edit_window_open_failed", L"Das Bearbeitungsfenster konnte nicht geöffnet werden.").c_str(), UiText(L"common.error", L"Fehler").c_str(), MB_OK | MB_ICONERROR);
             }
             return 0;
         }
@@ -1045,7 +1155,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             if (creationStatus != NewProductCreationStatus::Created || newProductPath.empty())
             {
-                MessageBoxW(hWnd, L"Neues Produkt konnte nicht erstellt werden.", L"Fehler", MB_OK | MB_ICONERROR);
+                MessageBoxW(hWnd, UiText(L"error.new_product_create_failed", L"Neues Produkt konnte nicht erstellt werden.").c_str(), UiText(L"common.error", L"Fehler").c_str(), MB_OK | MB_ICONERROR);
                 return 0;
             }
 
@@ -1062,7 +1172,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             if (!OpenEditProductWindow(hWnd, newProductPath.wstring(), false, true))
             {
-                MessageBoxW(hWnd, L"Das Bearbeitungsfenster konnte nicht geöffnet werden.", L"Fehler", MB_OK | MB_ICONERROR);
+                MessageBoxW(hWnd, UiText(L"error.edit_window_open_failed", L"Das Bearbeitungsfenster konnte nicht geöffnet werden.").c_str(), UiText(L"common.error", L"Fehler").c_str(), MB_OK | MB_ICONERROR);
             }
             return 0;
         }
@@ -1071,7 +1181,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             if (g_selectedProductPath.empty())
             {
-                MessageBoxW(hWnd, L"Bitte wählen Sie zuerst ein Produkt aus.", L"Produkt kopieren", MB_OK | MB_ICONINFORMATION);
+                MessageBoxW(hWnd, UiText(L"main.message.select_product_first", L"Bitte wählen Sie zuerst ein Produkt aus.").c_str(), UiText(L"main.button.copy_product", L"Produkt kopieren").c_str(), MB_OK | MB_ICONINFORMATION);
                 return 0;
             }
 
@@ -1084,7 +1194,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             if (copyStatus != ProductCopyStatus::Copied || copiedProductPath.empty())
             {
-                MessageBoxW(hWnd, L"Produkt konnte nicht kopiert werden.", L"Fehler", MB_OK | MB_ICONERROR);
+                MessageBoxW(hWnd, UiText(L"error.product_copy_failed", L"Produkt konnte nicht kopiert werden.").c_str(), UiText(L"common.error", L"Fehler").c_str(), MB_OK | MB_ICONERROR);
                 return 0;
             }
 
@@ -1106,7 +1216,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             if (g_selectedProductPath.empty())
             {
-                MessageBoxW(hWnd, L"Bitte wählen Sie zuerst ein Produkt aus.", L"Produkt löschen", MB_OK | MB_ICONINFORMATION);
+                MessageBoxW(hWnd, UiText(L"main.message.select_product_first", L"Bitte wählen Sie zuerst ein Produkt aus.").c_str(), UiText(L"main.button.delete_product", L"Produkt löschen").c_str(), MB_OK | MB_ICONINFORMATION);
                 return 0;
             }
 
@@ -1129,8 +1239,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
                 ClearDynamicOptionControls();
                 g_currentConfiguration = ProductConfiguration{};
-                SetWindowTextW(g_hBasePriceLabel, (L"Basispreis: " + FormatPrice(0.0)).c_str());
-                SetWindowTextW(g_hTotalPriceLabel, (L"Endpreis: " + FormatPrice(0.0)).c_str());
+                SetWindowTextW(g_hBasePriceLabel, (UiText(L"main.label.base_price", L"Basispreis") + L": " + FormatPrice(0.0)).c_str());
+                SetWindowTextW(g_hTotalPriceLabel, (UiText(L"main.label.total_price", L"Endpreis") + L": " + FormatPrice(0.0)).c_str());
             }
 
             return 0;
@@ -1159,14 +1269,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDM_SETTINGS_CURRENCY:
             if (PromptAndSaveAppSettings(hWnd, hInst, g_appSettings))
             {
+                AppLocalization::SetLanguageFromSettings(g_appSettings);
+                ApplyMainWindowLocalization(hWnd);
                 if (!g_selectedProductPath.empty())
                 {
                     RenderProductConfiguration(hWnd);
                 }
                 else
                 {
-                    SetWindowTextW(g_hBasePriceLabel, (L"Basispreis: " + FormatPrice(0.0)).c_str());
-                    SetWindowTextW(g_hTotalPriceLabel, (L"Endpreis: " + FormatPrice(0.0)).c_str());
+                    SetWindowTextW(g_hBasePriceLabel, (UiText(L"main.label.base_price", L"Basispreis") + L": " + FormatPrice(0.0)).c_str());
+                    SetWindowTextW(g_hTotalPriceLabel, (UiText(L"main.label.total_price", L"Endpreis") + L": " + FormatPrice(0.0)).c_str());
                 }
             }
             return 0;
@@ -1194,8 +1306,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         rc.right = 700;
         rc.bottom = 30;
 
-        const wchar_t* text = L"Bitte wählen Sie ein zu kalkulierendes Produkt aus.";
-        DrawTextW(hdc, text, -1, &rc, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
+        const std::wstring introText = UiText(L"main.paint.select_product", L"Bitte wählen Sie ein zu kalkulierendes Produkt aus.");
+        DrawTextW(hdc, introText.c_str(), -1, &rc, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
 
         EndPaint(hWnd, &ps);
     }
