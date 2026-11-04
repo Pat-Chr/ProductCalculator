@@ -373,19 +373,33 @@ bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductC
             configuration.basePrice = std::stod(basePriceMatch[1].str());
         }
 
-        const std::regex optionRegex(R"opt(\{\s*"name"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,\s*(?:"artikelnummer"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,\s*)?"preis"\s*:\s*(-?\d+(?:\.\d+)?)\s*\})opt");
-        for (std::sregex_iterator it(content.begin(), content.end(), optionRegex); it != std::sregex_iterator(); ++it)
+        const std::regex optionObjectRegex(R"opt(\{\s*"name"\s*:[^\}]*"preis"\s*:[^\}]*\})opt");
+        const std::regex optionNameRegex("\\\"name\\\"\\s*:\\s*\\\"([^\\\"\\\\]*(?:\\\\.[^\\\"\\\\]*)*)\\\"");
+        const std::regex optionArticleNumberRegex("\\\"artikelnummer\\\"\\s*:\\s*\\\"([^\\\"\\\\]*(?:\\\\.[^\\\"\\\\]*)*)\\\"");
+        const std::regex optionPriceRegex(R"("preis"\s*:\s*(-?\d+(?:\.\d+)?))");
+
+        for (std::sregex_iterator it(content.begin(), content.end(), optionObjectRegex); it != std::sregex_iterator(); ++it)
         {
-            const std::smatch& match = *it;
+            const std::string optionObjectText = it->str();
+            std::smatch optionNameMatch;
+            std::smatch optionPriceMatch;
+            if (!std::regex_search(optionObjectText, optionNameMatch, optionNameRegex) ||
+                !std::regex_search(optionObjectText, optionPriceMatch, optionPriceRegex))
+            {
+                continue;
+            }
 
             ProductOption option;
-            option.name = ToWideString(match[1].str());
-            if (match[2].matched)
+            option.name = ToWideString(optionNameMatch[1].str());
+
+            std::smatch optionArticleNumberMatch;
+            if (std::regex_search(optionObjectText, optionArticleNumberMatch, optionArticleNumberRegex))
             {
-                const std::wstring loadedOptionArticleNumber = ToWideString(match[2].str());
+                const std::wstring loadedOptionArticleNumber = ToWideString(optionArticleNumberMatch[1].str());
                 option.articleNumber = loadedOptionArticleNumber.empty() ? L"-" : loadedOptionArticleNumber;
             }
-            option.price = std::stod(match[3].str());
+
+            option.price = std::stod(optionPriceMatch[1].str());
             configuration.options.push_back(std::move(option));
         }
     }
