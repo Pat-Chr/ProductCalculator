@@ -176,6 +176,8 @@
   <ItemGroup>
     <None Include="ARCHITECTURE.md" />
     <None Include="CHANGELOG.md" />
+    <None Include="productdata\beispielprodukt\produkt.json" />
+    <None Include="productdata\exampleproduct\produkt.json" />
     <None Include="productdata\\exampleproduct\\product.json" />
     <None Include="productdata\README_Products.md" />
     <None Include="README.md" />
