@@ -3,6 +3,7 @@
 #include "Resource.h"
 
 #include <cstddef>
+#include <map>
 #include <string>
 #include <vector>
 #include <windows.h>
@@ -27,6 +28,7 @@ struct ProductConfiguration
 struct AppSettings
 {
     std::wstring standardwaehrung = L"CHF";
+    std::map<std::wstring, std::wstring> additionalRawJsonValues;
 };
 
 extern HINSTANCE hInst;

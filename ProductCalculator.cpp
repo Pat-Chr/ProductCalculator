@@ -8,6 +8,8 @@
 #include "EasterEggClickTracker.h"
 #include "RestoredProductsCleanup.h"
 #include "ProductDataDirectoryResolver.h"
+#include "AppSettingsStore.h"
+#include "SettingsWindow.h"
 
 #include <algorithm>
 #include <fstream>
@@ -49,8 +51,6 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 std::wstring ToWideString(const std::string& text);
-std::filesystem::path FindFileInCurrentOrParents(const std::wstring& fileName);
-bool TryLoadAppSettings(AppSettings& settings);
 std::wstring FormatPrice(double value);
 bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductConfiguration& configuration);
 void ClearDynamicOptionControls();
@@ -195,34 +195,6 @@ bool TryRestoreEmbeddedProduct(const SavedProjectData& data, const std::wstring&
     return true;
 }
 
-// Searches for a file recursively upward from the EXE directory,
-// to find dynamic configuration files.
-std::filesystem::path FindFileInCurrentOrParents(const std::wstring& fileName)
-{
-    wchar_t modulePath[MAX_PATH] = {};
-    GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
-
-    std::filesystem::path currentPath = std::filesystem::path(modulePath).parent_path();
-    while (!currentPath.empty())
-    {
-        const std::filesystem::path candidatePath = currentPath / fileName;
-        std::error_code ec;
-        if (std::filesystem::exists(candidatePath, ec) && std::filesystem::is_regular_file(candidatePath, ec))
-        {
-            return candidatePath;
-        }
-
-        if (currentPath == currentPath.root_path())
-        {
-            break;
-        }
-
-        currentPath = currentPath.parent_path();
-    }
-
-    return {};
-}
-
 // Converts a UTF-8 string to a Unicode wide string.
 // Falls back to the local code page if UTF-8 conversion fails.
 std::wstring ToWideString(const std::string& text)
@@ -251,48 +223,6 @@ std::wstring ToWideString(const std::string& text)
     std::wstring result(requiredSize, L'\0');
     MultiByteToWideChar(codePage, flags, text.c_str(), static_cast<int>(text.size()), result.data(), requiredSize);
     return result;
-}
-
-// Loads application settings from settings.json.
-// Resets defaults and extracts standardwaehrung from the JSON file.
-// Returns true if the file was read successfully.
-bool TryLoadAppSettings(AppSettings& settings)
-{
-    settings = AppSettings{};
-
-    const std::filesystem::path settingsPath = FindFileInCurrentOrParents(L"settings.json");
-    if (settingsPath.empty())
-    {
-        return false;
-    }
-
-    std::ifstream file(settingsPath, std::ios::binary);
-    if (!file)
-    {
-        return false;
-    }
-
-    const std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-
-    try
-    {
-        std::smatch currencyMatch;
-        const std::regex currencyRegex("\"standardwaehrung\"\\s*:\\s*\"([^\"]+)\"");
-        if (std::regex_search(content, currencyMatch, currencyRegex))
-        {
-            const std::wstring loadedCurrency = ToWideString(currencyMatch[1].str());
-            if (!loadedCurrency.empty())
-            {
-                settings.standardwaehrung = loadedCurrency;
-            }
-        }
-    }
-    catch (...)
-    {
-        return false;
-    }
-
-    return true;
 }
 
 // Formats a price with two decimal places and appends the currency.
@@ -795,7 +725,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_PRODUCTCALCULATOR, szWindowClass, MAX_LOADSTRING);
-    TryLoadAppSettings(g_appSettings);
+    LoadAppSettings(g_appSettings);
     MyRegisterClass(hInstance);
 
     if (!InitInstance (hInstance, nCmdShow))
@@ -1226,6 +1156,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         switch (wmId)
         {
+        case IDM_SETTINGS_CURRENCY:
+            if (PromptAndSaveAppSettings(hWnd, hInst, g_appSettings))
+            {
+                if (!g_selectedProductPath.empty())
+                {
+                    RenderProductConfiguration(hWnd);
+                }
+                else
+                {
+                    SetWindowTextW(g_hBasePriceLabel, (L"Basispreis: " + FormatPrice(0.0)).c_str());
+                    SetWindowTextW(g_hTotalPriceLabel, (L"Endpreis: " + FormatPrice(0.0)).c_str());
+                }
+            }
+            return 0;
         case IDM_ABOUT:
             DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
             break;

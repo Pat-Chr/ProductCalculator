@@ -60,6 +60,12 @@
     <ClInclude Include="ProjectPersistence.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="AppSettingsStore.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="SettingsWindow.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ProductCalculator.cpp">
@@ -87,6 +93,12 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="ProductSummaryWindow.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="AppSettingsStore.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="SettingsWindow.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
@@ -120,6 +132,8 @@
     </None>
   </ItemGroup>
 </Project>
+
+
 
 
 
