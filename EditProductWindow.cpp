@@ -1430,6 +1430,16 @@ namespace
 			LayoutEditWindowControls(state, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
 			return 0;
 		}
+		case WM_GETMINMAXINFO:
+		{
+			MINMAXINFO* minMaxInfo = reinterpret_cast<MINMAXINFO*>(lParam);
+			if (minMaxInfo != nullptr)
+			{
+				minMaxInfo->ptMinTrackSize.x = 1080;
+				minMaxInfo->ptMinTrackSize.y = 560;
+			}
+			return 0;
+		}
 		case WM_SIZE:
 			// Passt das Layout an, wenn sich die Fenstergröße ändert.
 			LayoutEditWindowControls(state, LOWORD(lParam), HIWORD(lParam));
@@ -1599,8 +1609,8 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
-		880,
-		520,
+		1080,
+		560,
 		ownerWindow,
 		nullptr,
 		appInstance,
