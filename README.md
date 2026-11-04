@@ -12,6 +12,9 @@ ProductCalculator ist eine Win32-Desktopanwendung zur Konfiguration von Produkte
 ## Zweck
 Die Anwendung unterstützt dabei, schnell passende Produktvarianten zusammenzustellen, Preise transparent zu berechnen und Konfigurationen direkt zu pflegen.
 
+## Screenshot
+![ProductCalculator – Programmübersicht](docs/images/productcalculator-screenshot.png)
+
 ## Funktionsumfang
 - Auswahl vorhandener Produkte aus `produktdaten/*`
 - Dynamische Preisberechnung aus Basispreis + Optionen × Menge
