@@ -1,23 +1,25 @@
 ﻿# ARCHITECTURE.md - ProductCalculator
 
-## 1. Überblick
 
-### 1.1 Kurze Beschreibung
-ProductCalculator ist eine Win32-Desktopanwendung zur Konfiguration von Produkten auf Basis von JSON-Dateien und zur dynamischen Berechnung des Endpreises.
+## 1. Overview
 
-### 1.2 Zielsetzung
-Die Anwendung soll Produktkonfigurationen einfach auswählbar, bearbeitbar, neu anlegbar und löschbar machen, inklusive sofortiger Preisaktualisierung und exportierbarer Ergebnisübersicht.
+### 1.1 Short Description
+ProductCalculator is a Win32 desktop application for configuring products based on JSON files and dynamically calculating the final price.
 
-### 1.3 Einsatzgebiet
-- Einfache Angebots- und Kalkulationsszenarien
-- Standardprodukte mit variablen Optionen und Mengen
-- Windows-Desktopumgebung (Win32 API, C++20)
+### 1.2 Objective
+The application should make product configurations easy to select, edit, create anew, and delete, including immediate price updates and exportable result overview.
+
+### 1.3 Use Case
+- Simple quotation and calculation scenarios
+- Standard products with variable options and quantities
+- Windows desktop environment (Win32 API, C++20)
+
 
 ---
 
-## 2. Systemarchitektur
+## 2. System Architecture
 
-### 2.1 Hauptkomponenten
+### 2.1 Main Components
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -25,70 +27,71 @@ Die Anwendung soll Produktkonfigurationen einfach auswählbar, bearbeitbar, neu 
 │                                                                              │
 │  ┌─────────────────────┐      ┌─────────────────────┐      ┌─────────────-┐  │
 │  │       UI Layer      │      │      Data Layer     │      │ Logic Layer  │  │
-│  │ - Hauptfenster      │      │ - settings.json     │      │ - Preisform. │  │
-│  │ - Edit-Fenster      │      │ - productdata/*    │      │ - Summen     │  │
-│  │ - Neu-Produkt-Dialog│      │ - product.json      │      │ - Validierung│  │
-│  │ - Summary-Fenster   │      │ - UTF-8 JSON I/O    │      │ - UI Sync    │  │
+│  │ - Main Window       │      │ - settings.json     │      │ - Price Form.│  │
+│  │ - Edit Window       │      │ - productdata/*     │      │ - Sums       │  │
+│  │ - New Product Dialog│      │ - product.json      │      │ - Validation │  │
+│  │ - Summary Window    │      │ - UTF-8 JSON I/O    │      │ - UI Sync    │  │
 │  └─────────────────────┘      └─────────────────────┘      └─────────────-┘  │
 │                                                                              │
 │  ┌─────────────────────┐      ┌─────────────────────┐                        │
 │  │   Resource Layer    │      │    System Layer     │                        │
-│  │ - Menüs/Dialoge     │      │ - Win32 API         │                        │
+│  │ - Menus/Dialogs     │      │ - Win32 API         │                        │
 │  │ - IDs in Resource.h │      │ - GDI / MessageLoop │                        │
 │  │ - Icons/Strings     │      │ - std::filesystem   │                        │
 │  └─────────────────────┘      └─────────────────────┘                        │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Datenfluss
+### 2.2 Data Flow
 
 ```
-Benutzeraktion
-   ↓
-WndProc / Fenster-Handler
-   ↓
-Produkt-JSON / Projektdatei laden/speichern
-   ↓
-Preisberechnung + UI-Rebuild
-   ↓
-Anzeige (Labels, Mengenfelder, Summary, MessageBox)
+User Action
+  ↓
+WndProc / Window Handler
+  ↓
+Load/Save Product JSON / Project File
+  ↓
+Price Calculation + UI Rebuild
+  ↓
+Display (Labels, Quantity Fields, Summary, MessageBox)
 ```
 
-### 2.3 Fensterübergreifende Synchronisation
-- Das Bearbeitungsfenster sendet `WM_PRODUCT_CONFIGURATION_UPDATED` an das Hauptfenster.
-- Das Hauptfenster lädt daraufhin Dropdown und Konfiguration neu.
-- Speichern im Bearbeitungsfenster schließt das Fenster nicht, sondern aktualisiert nur den Zustand.
+### 2.3 Cross-Window Synchronization
+- The edit window sends `WM_PRODUCT_CONFIGURATION_UPDATED` to the main window.
+- The main window then reloads the dropdown and configuration.
+- Saving in the edit window does not close it, but only updates the state.
+
 
 ---
 
-## 3. Module und Dateien
+## 3. Modules and Files
 
-### 3.1 Hauptmodule
+### 3.1 Main Modules
 
-| Datei | Zweck |
+| File | Purpose |
 |-------|-------|
-| `ProductCalculator.cpp` | Einstiegspunkt, Hauptfenster, Layout, Dropdown-Befüllung, Preisberechnung |
-| `ProductCalculator.h` | Gemeinsame Datentypen und globale Schnittstellen |
-| `EditProductWindow.cpp/.h` | Eigenes Bearbeitungsfenster für Basispreis/Optionen inkl. JSON-Speicherung |
-| `NewProductCreator.cpp/.h` | Dialog und Erzeugung neuer Produktordner mit Default-`product.json` |
-| `ProductDeletion.cpp/.h` | Bestätigung und rekursives Löschen eines Produktordners |
-| `ProductSummaryWindow.cpp` | Eigenes Fenster für Textzusammenfassung und Clipboard-Kopie |
-| `ProjectPersistence.cpp/.h` | Speichern/Laden von Projektdateien (`.pcproj`) inkl. Mengen und eingebettetem Produkt-JSON |
-| `RestoredProductsCleanup.cpp/.h` | Bereinigung von `saved_projects/restored_products` beim Programmende |
-| `ProductCalculator.rc` | Ressourcen (Menü, Dialoge, Icons, Stringtable) |
-| `Resource.h` | Ressourcen-IDs (Buttons, Dialoge, Controls, Menüs) |
+| `ProductCalculator.cpp` | Entry point, main window, layout, dropdown population, price calculation |
+| `ProductCalculator.h` | Shared data types and global interfaces |
+| `EditProductWindow.cpp/.h` | Separate edit window for base price/options including JSON persistence |
+| `NewProductCreator.cpp/.h` | Dialog and creation of new product folders with default `product.json` |
+| `ProductDeletion.cpp/.h` | Confirmation and recursive deletion of a product folder |
+| `ProductSummaryWindow.cpp` | Separate window for text summary and clipboard copy |
+| `ProjectPersistence.cpp/.h` | Save/Load project files (`.pcproj`) including quantities and embedded product JSON |
+| `RestoredProductsCleanup.cpp/.h` | Cleanup of `saved_projects/restored_products` on program exit |
+| `ProductCalculator.rc` | Resources (menus, dialogs, icons, string table) |
+| `Resource.h` | Resource IDs (buttons, dialogs, controls, menus) |
 
-### 3.2 Build- und Laufzeitdateien
+### 3.2 Build and Runtime Files
 
-| Datei | Zweck |
+| File | Purpose |
 |-------|-------|
-| `ProductCalculator.vcxproj` | Projektdefinition (C++20, Quellen, Post-Build-Copy) |
-| `settings.json` | App-Einstellung `standardwaehrung` |
-| `productdata/<product>/product.json` | Persistente Produktdefinition |
-| `saved_projects/*.pcproj` | Persistente Projektstände (Produktbezug, Mengen, eingebettetes Produkt-JSON) |
-| `saved_projects/restored_products/*` | Laufzeit-Wiederherstellungen aus gespeicherten Projekten (wird beim Beenden geleert) |
+| `ProductCalculator.vcxproj` | Project definition (C++20, sources, post-build copy) |
+| `settings.json` | App setting `standardcurrency` |
+| `productdata/<product>/product.json` | Persistent product definition |
+| `saved_projects/*.pcproj` | Persistent project states (product reference, quantities, embedded product JSON) |
+| `saved_projects/restored_products/*` | Runtime restorations from saved projects (emptied on exit) |
 
-### 3.3 Zentrale globale Zustände
+### 3.3 Central Global States
 
 ```cpp
 HINSTANCE hInst;
@@ -102,11 +105,12 @@ ProductConfiguration g_currentConfiguration;
 AppSettings g_appSettings;
 ```
 
+
 ---
 
-## 4. Datenmodell
+## 4. Data Model
 
-### 4.1 Produktmodell (`product.json`)
+### 4.1 Product Model (`product.json`)
 
 ```json
 {
@@ -120,163 +124,171 @@ AppSettings g_appSettings;
 }
 ```
 
-### 4.2 Interne Strukturen
+### 4.2 Internal Structures
 - `ProductOption { name, price }`
 - `ProductConfiguration { basePrice, options[] }`
-- `AppSettings { standardwaehrung }`
+- `AppSettings { standardcurrency }`
 
-### 4.3 Preisberechnung
+### 4.3 Price Calculation
 
 ```
 Endpreis = basispreis + Σ(option.preis × menge)
 ```
 
-Hinweise:
-- Mengenfelder werden pro Option dynamisch erzeugt.
-- Startwert der Mengen ist `0`.
-- Negative Eingaben werden auf `0` begrenzt.
+Notes:
+- Quantity fields are dynamically generated per option.
+- Initial quantity value is `0`.
+- Negative inputs are clamped to `0`.
+
 
 ---
 
-## 5. Design-Entscheidungen
+## 5. Design Decisions
 
-### 5.1 Win32 + STL statt externer Frameworks
-- Keine externen Runtime-Abhängigkeiten
-- Direkter Zugriff auf Message-Loop und Control-Verhalten
-- Gute Portabilität innerhalb klassischer Windows-Desktopumgebungen
+### 5.1 Win32 + STL instead of External Frameworks
+- No external runtime dependencies
+- Direct access to Message Loop and Control behavior
+- Good portability within classic Windows desktop environments
 
-### 5.2 Modulare Aufteilung nach Feature
-- Produktbearbeitung, Neuerstellung, Löschung und Summary sind in separaten Modulen gekapselt.
-- Entspricht dem Ziel, neue Features nicht direkt in `ProductCalculator.cpp` zu vermischen.
+### 5.2 Modular Split by Feature
+- Product editing, creation, deletion, and summary are encapsulated in separate modules.
+- Aligns with the goal of not mixing new features directly into `ProductCalculator.cpp`.
 
-### 5.3 Dateibasierte Persistenz
-- Produktdaten liegen je Produkt in eigenem Unterordner.
-- `productdata` und `settings.json` werden per Post-Build in das Ausgabeverzeichnis kopiert.
-- Pfade werden robust relativ zum EXE-Standort in Parent-Verzeichnissen gesucht.
+### 5.3 File-Based Persistence
+- Product data resides in its own subfolder per product.
+- `productdata` and `settings.json` are copied to the output directory via post-build.
+- Paths are robustly searched relative to EXE location in parent directories.
 
-### 5.4 JSON-Verarbeitung
-- JSON wird ohne Drittbibliothek per String-/Regex-Verarbeitung verarbeitet.
-- UTF-8 ↔ Wide-String Konvertierung ist zentral berücksichtigt.
+### 5.4 JSON Processing
+- JSON is processed without third-party library via string/regex processing.
+- UTF-8 ↔ Wide-String conversion is centrally considered.
 
----
-
-## 6. Hauptabläufe
-
-### 6.1 Start und Initialisierung
-1. `wWinMain` lädt Ressourcen-Strings.
-2. `settings.json` wird gelesen (`standardwaehrung`).
-3. Hauptfenster wird erstellt.
-4. Produkt-Dropdown wird mit Ordnern unter `productdata` gefüllt.
-
-### 6.2 Produktauswahl und Kalkulation
-1. Benutzer wählt Produkt im Dropdown.
-2. `product.json` wird geladen.
-3. Optionen + Mengenfelder werden neu gerendert.
-4. Bei Mengenänderung wird der Endpreis sofort neu berechnet.
-
-### 6.3 Produkt bearbeiten
-1. Öffnen über Menü oder Button.
-2. Falls Fenster bereits existiert: nur fokussieren/wiederherstellen.
-3. Speichern schreibt `product.json`.
-4. Hauptfenster wird via `WM_PRODUCT_CONFIGURATION_UPDATED` synchronisiert.
-5. Bearbeitungsfenster bleibt geöffnet.
-
-### 6.4 Neues Produkt anlegen
-1. Name wird per Dialog abgefragt.
-2. Ordnername wird bereinigt und auf Kollision geprüft.
-3. Ordner + Default-`product.json` (`basispreis: 0.0`, `optionen: []`) werden erzeugt.
-4. Dropdown wird aktualisiert und neues Produkt selektiert.
-
-### 6.5 Produkt löschen
-1. Sicherheitsabfrage per `MessageBox`.
-2. Rekursives Löschen des gewählten Produktordners.
-3. Dropdown und Anzeigezustand werden aktualisiert.
-
-### 6.6 Ergebnisübersicht
-- Separate Fensterklasse zeigt Basispreis, Optionen, Mengen, Zeilensummen und Gesamtpreis.
-- Text kann direkt in die Zwischenablage kopiert werden.
-
-### 6.7 Projekt speichern/laden
-1. Speichern erzeugt eine `.pcproj` mit Produktpfad/-name, Mengen und eingebettetem `product.json`.
-2. Laden stellt bevorzugt die eingebettete Produktkonfiguration wieder her.
-3. Falls kein eingebettetes Produkt vorhanden ist, erfolgt Fallback über Produktpfad/-name.
-4. Nach dem Laden werden Mengenfelder befüllt und die Kalkulation aktualisiert.
-
-### 6.8 Beenden und Aufräumen
-1. Beim `WM_DESTROY` werden dynamische Controls und Zustände freigegeben.
-2. `saved_projects/restored_products` wird vollständig bereinigt.
 
 ---
 
-## 7. Schnittstellen und Erweiterbarkeit
+## 6. Main Workflows
 
-### 7.1 Wichtige öffentliche Funktionen
-| Funktion | Beschreibung |
+### 6.1 Start and Initialization
+1. `wWinMain` loads resource strings.
+2. `settings.json` is read (`standardcurrency`).
+3. Main window is created.
+4. Product dropdown is populated with folders under `productdata`.
+
+### 6.2 Product Selection and Calculation
+1. User selects product in dropdown.
+2. `product.json` is loaded.
+3. Options + quantity fields are re-rendered.
+4. On quantity change, final price is recalculated immediately.
+
+### 6.3 Edit Product
+1. Open via menu or button.
+2. If window already exists: only focus/restore.
+3. Save writes `product.json`.
+4. Main window is synchronized via `WM_PRODUCT_CONFIGURATION_UPDATED`.
+5. Edit window remains open.
+
+### 6.4 Create New Product
+1. Name is queried via dialog.
+2. Folder name is cleaned and checked for collision.
+3. Folder + default `product.json` (`basispreis: 0.0`, `optionen: []`) are created.
+4. Dropdown is updated and new product selected.
+
+### 6.5 Delete Product
+1. Safety prompt via `MessageBox`.
+2. Recursive deletion of selected product folder.
+3. Dropdown and display state are updated.
+
+### 6.6 Result Overview
+- Separate window class shows base price, options, quantities, line sums, and total price.
+- Text can be copied directly to clipboard.
+
+### 6.7 Save/Load Project
+1. Save creates a `.pcproj` with product path/name, quantities, and embedded `product.json`.
+2. Load restores the embedded product configuration preferably.
+3. If no embedded product exists, fallback via product path/name occurs.
+4. After loading, quantity fields are populated and calculation updated.
+
+### 6.8 Exit and Cleanup
+1. On `WM_DESTROY`, dynamic controls and states are released.
+2. `saved_projects/restored_products` is fully cleaned.
+
+
+---
+
+## 7. Interfaces and Extensibility
+
+### 7.1 Important Public Functions
+
+| Function | Description |
 |----------|--------------|
-| `OpenEditProductWindow(HWND, const std::wstring&)` | Öffnet/fokussiert Produktbearbeitung |
-| `CreateNewProductFolderWithDefaults(HWND, std::filesystem::path&)` | Legt neues Produkt mit Standarddatei an |
-| `ConfirmAndDeleteProduct(HWND, const std::wstring&)` | Bestätigt und löscht Produktordner |
-| `ShowSummaryWindow(HWND)` | Öffnet Ergebnisübersicht |
-| `SaveCurrentProject(HWND)` | Speichert aktuellen Stand als `.pcproj` |
-| `LoadProjectIntoCalculator(HWND, HWND)` | Lädt einen gespeicherten Projektstand in die Kalkulation |
-| `FormatPrice(double)` | Preisformatierung inkl. Währung |
+| `OpenEditProductWindow(HWND, const std::wstring&)` | Opens/focuses product editing |
+| `CreateNewProductFolderWithDefaults(HWND, std::filesystem::path&)` | Creates new product with default file |
+| `ConfirmAndDeleteProduct(HWND, const std::wstring&)` | Confirms and deletes product folder |
+| `ShowSummaryWindow(HWND)` | Opens result overview |
+| `SaveCurrentProject(HWND)` | Saves current state as `.pcproj` |
+| `LoadProjectIntoCalculator(HWND, HWND)` | Loads saved project state into calculator |
+| `FormatPrice(double)` | Price formatting including currency |
 
-### 7.2 Erweiterungspunkte
-- Zusätzliche Preisregeln (Rabatte, Staffelpreise, Steuern)
-- Validierungsschemata für `product.json`
-- Mehrsprachige UI-Strings über Ressourcen
-- Persistente Sortierung/Filter im Produkt-Dropdown
+### 7.2 Extension Points
+- Additional pricing rules (discounts, tiered prices, taxes)
+- Validation schemas for `product.json`
+- Multi-language UI strings via resources
+- Persistent sort/filter in product dropdown
 
----
-
-## 8. Status und Roadmap
-
-### 8.1 Aktueller Status
-- ✅ Hauptfenster mit Produktauswahl vorhanden
-- ✅ Dynamische Preisberechnung mit Mengenfeldern vorhanden
-- ✅ Produktbearbeitung (Basispreis + Optionen) vorhanden
-- ✅ Neuanlage von Produkten vorhanden
-- ✅ Kopieren von Produkten vorhanden
-- ✅ Löschen von Produkten vorhanden
-- ✅ Ergebnisübersicht mit Kopierfunktion vorhanden
-- ✅ Projekt speichern/laden (`.pcproj`) vorhanden
-- ✅ Wiederhergestellte Laufzeitdaten werden beim Beenden bereinigt
-- ✅ Einstellungen (Währung) über `settings.json` vorhanden
-
-### 8.2 Mögliche nächste Schritte
-1. Robuste JSON-Parser-Bibliothek statt Regex einführen
-2. Automatisierte Tests für Parser/Preislogik ergänzen
-3. Fehlerdiagnostik (z. B. detaillierte Dateifehler) erweitern
-4. Optionale Import/Export-Funktionen für Produktkataloge ergänzen
 
 ---
 
-## 9. Konventionen
+## 8. Status and Roadmap
 
-### 9.1 Benennung
-- Ressourcen-IDs: `IDM_`, `IDD_`, `IDC_`, `IDI_`
-- Globale Handles/Zustände: `g_`-Präfix
-- Win32-Einstiegspunkte und WndProc nach WinAPI-Konvention
+### 8.1 Current Status
+- ✅ Main window with product selection exists
+- ✅ Dynamic price calculation with quantity fields exists
+- ✅ Product editing (base price + options) exists
+- ✅ New product creation exists
+- ✅ Copying products exists
+- ✅ Deleting products exists
+- ✅ Result overview with copy function exists
+- ✅ Project save/load (`.pcproj`) exists
+- ✅ Restored runtime data is cleaned on exit
+- ✅ Settings (currency) via `settings.json` exists
 
-### 9.2 UI-/Verhaltenskonventionen
-- Produkt-Bearbeitungsfenster bleibt nach Speichern offen.
-- Mengenfelder starten standardmäßig mit `0`.
-- Button-Beschriftung für Ergebnisanzeige/Summary ist einheitlich `Kalkulieren`.
+### 8.2 Possible Next Steps
+1. Introduce robust JSON parser library instead of regex
+2. Add automated tests for parser/price logic
+3. Expand error diagnostics (e.g., detailed file errors)
+4. Optionally add import/export functions for product catalogs
 
-### 9.3 Technische Konventionen
-- Sprachstandard: C++20
-- Zeichenkodierung: UTF-8 in Dateien, Wide-Strings im UI-Kontext
 
 ---
 
-## 10. Referenzen
+## 9. Conventions
 
-- [README.md](README.md) – Projektüberblick
-- [productdata/README_Produkte.md](productdata/README_Produkte.md) – Produktdatenstruktur
+### 9.1 Naming
+- Resource IDs: `IDM_`, `IDD_`, `IDC_`, `IDI_`
+- Global handles/states: `g_` prefix
+- Win32 entry points and WndProc follow WinAPI convention
+
+### 9.2 UI/Behavior Conventions
+- Product edit window remains open after save.
+- Quantity fields start with `0` by default.
+- Button label for result display/summary is consistently `Calculate`.
+
+### 9.3 Technical Conventions
+- Language standard: C++20
+- Character encoding: UTF-8 in files, Wide-Strings in UI context
+
+
+---
+
+## 10. References
+
+- [README.md](README.md) – Project overview
+- [productdata/README_Produkte.md](productdata/README_Produkte.md) – Product data structure
 - [LICENSE.txt](LICENSE.txt) – MIT License
-- Windows SDK Dokumentation für Win32 API
+- Windows SDK documentation for Win32 API
+
 
 ---
 
-*Letzte Änderung: 01.11.2026*  
-*Autor: Patrick Christe*
+*Last change: 01.11.2026*  
+*Author: Patrick Christe*
