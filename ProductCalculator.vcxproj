@@ -183,11 +183,19 @@
     <None Include="settings.json" />
   </ItemGroup>
   <ItemDefinitionGroup>
-    <PostBuildEvent>
+    <PostBuildEvent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       <Command>copy /Y "$(ProjectDir)README.md" "$(OutDir)README.md"
 copy /Y "$(ProjectDir)LICENSE.txt" "$(OutDir)LICENSE.txt"
 copy /Y "$(ProjectDir)settings.json" "$(OutDir)settings.json"
-xcopy /E /I /Y "$(ProjectDir)produktdaten" "$(OutDir)produktdaten\"</Command>
+xcopy /E /I /Y "$(ProjectDir)produktdaten" "$(OutDir)produktdaten\"
+powershell -Command "&amp;{ $files = Get-ChildItem '$(OutDir)' -File | Select-Object -ExpandProperty Name; $zipPath = '$(OutDir)ProductCalculator_Release.zip'; Compress-Archive -Path '$(OutDir)*' -DestinationPath $zipPath -Force; Write-Host 'Created release archive: $zipPath' }"</Command>
+    </PostBuildEvent>
+    <PostBuildEvent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      <Command>copy /Y "$(ProjectDir)README.md" "$(OutDir)README.md"
+copy /Y "$(ProjectDir)LICENSE.txt" "$(OutDir)LICENSE.txt"
+copy /Y "$(ProjectDir)settings.json" "$(OutDir)settings.json"
+xcopy /E /I /Y "$(ProjectDir)produktdaten" "$(OutDir)produktdaten\"
+powershell -Command "&amp;{ $files = Get-ChildItem '$(OutDir)' -File | Select-Object -ExpandProperty Name; $zipPath = '$(OutDir)ProductCalculator_Release.zip'; Compress-Archive -Path '$(OutDir)*' -DestinationPath $zipPath -Force; Write-Host 'Created release archive: $zipPath' }"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
