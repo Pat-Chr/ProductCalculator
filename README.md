@@ -1,93 +1,105 @@
 # ProductCalculator
 
-## Überblick
-ProductCalculator ist eine Win32-Desktopanwendung zur Konfiguration von Produkten auf Basis von JSON-Dateien und zur dynamischen Berechnung des Endpreises.
+## Overview
 
-## Metadaten
-- **Erstellt von:** Patrick Christe
-- **Datum:** 01.11.2026
-- **Lizenz:** MIT License (siehe [LICENSE.txt](LICENSE.txt))
+ProductCalculator is a Win32 desktop application for configuring products based on JSON files and dynamically calculating the final price.
+
+## Metadata
+
+- **Created by:** Patrick Christe
+- **Date:** 01.11.2026
+- **License:** MIT License (see [LICENSE.txt](LICENSE.txt))
 - **Repository:** [GitHub](https://github.com/Pat-Chr/ProductCalculator)
 
-## Zweck
-Die Anwendung unterstützt dabei, schnell passende Produktvarianten zusammenzustellen, Preise transparent zu berechnen und Konfigurationen direkt zu pflegen.
+## Purpose
+
+The application helps quickly assemble suitable product variants, calculate prices transparently, and manage configurations directly.
 
 ## Screenshot
-![ProductCalculator – Programmübersicht](docs/images/productcalculator-screenshot.png)
 
-## Funktionsumfang
-- Auswahl vorhandener Produkte aus `productdata/*`
-- Dynamische Preisberechnung aus Basispreis + Optionen × Menge
-- Bearbeiten von Basispreis und Optionen in eigenem Bearbeitungsfenster
-- Anlegen neuer Produkte inkl. Standard-`product.json`
-- Löschen bestehender Produkte mit Sicherheitsabfrage
-- Ergebnisübersicht in eigenem Fenster mit Kopierfunktion (Clipboard)
-- Projekt speichern/laden als `.pcproj` inkl. Mengen und eingebetteter Produktkonfiguration
-- Beim Laden wird bevorzugt die im Projekt gespeicherte Konfiguration verwendet (auch für Custom-Optionen)
-- Temporär wiederhergestellte Produkte werden beim Beenden automatisch bereinigt
-- Währungskonfiguration über `settings.json`
+![ProductCalculator – Application Overview](docs/images/productcalculator-screenshot.png)
 
-## Typischer Ablauf
-1. Produkt im Dropdown auswählen.
-2. Mengen je Option eingeben (Startwert je Option: `0`).
-3. Endpreis live aktualisiert prüfen.
-4. Optional Produkt bearbeiten, neu anlegen oder löschen.
-5. Über „Kalkulieren“ die Übersicht öffnen und kopieren.
-6. Optional Projekt als `.pcproj` speichern oder wieder laden.
+## Features
 
-## Datenformat
-Produktdaten liegen je Produkt in einem eigenen Ordner:
+- Selection of existing products from `productdata/*`
+- Dynamic price calculation from base price + options × quantity
+- Editing of base price and options in a separate edit window
+- Creating new products including default `product.json`
+- Deleting existing products with safety confirmation
+- Result overview in a separate window with copy function (Clipboard)
+- Save/load project as `.pcproj` including quantities and embedded product configuration
+- When loading, the saved configuration in the project is preferred (also for custom options)
+- Temporarily restored products are automatically cleaned up when closing
+- Currency configuration via `settings.json`
+
+## Typical Workflow
+
+1. Select a product from the dropdown.
+2. Enter quantities per option (default value per option: `0`).
+3. Check that the final price is updated live.
+4. Optionally edit, create new, or delete a product.
+5. Open the overview via "Calculate" and copy it.
+6. Optionally save or load a project as `.pcproj`.
+
+## Data Format
+
+Product data for each product is stored in its own folder:
 - `productdata/<productName>/product.json`
 
-Beispielstruktur:
+Example structure:
 - `productId` (String)
 - `productName` (String)
-- `basispreis` (Zahl)
-- `optionen[]` mit `name` und `preis`
+- `basispreis` (number)
+- `optionen[]` with `name` and `price`
 
-App-Einstellungen:
-- `settings.json` → `standardwaehrung` (z. B. `CHF`)
+App settings:
+- `settings.json` → `standardwaehrung` (e.g., `CHF`)
 
-## Technische Hinweise
-- Projekttyp: C++ Windows-Desktopanwendung (Win32 API)
-- Sprache: C++20
-- Oberfläche: Deutsch
-- Persistenz: JSON-Dateien (UTF-8)
-- Keine externen Framework-Abhängigkeiten erforderlich
+## Technical Notes
 
-## Build und Ausführung
-1. Projekt in Visual Studio öffnen.
-2. Konfiguration wählen (z. B. `Debug | x64`).
-3. Projekt erstellen und starten.
+- Project type: C++ Windows desktop application (Win32 API)
+- Language: C++20
+- UI: German
+- Persistence: JSON files (UTF-8)
+- No external framework dependencies required
 
-Hinweis:
-- Post-Build kopiert `README.md`, `LICENSE.txt`, `settings.json` und den Ordner `productdata` in das Ausgabeverzeichnis.
+## Build and Execution
 
-## Projektstruktur (kurz)
-- `ProductCalculator.cpp/.h` – Hauptfenster, Auswahl, Preislogik und Projektaktionen
-- `EditProductWindow.cpp/.h` – Produktbearbeitung
-- `NewProductCreator.cpp/.h` – Neuanlage von Produkten
-- `ProductCopyCreator.cpp/.h` – Produktkopie
-- `ProductDeletion.cpp/.h` – Produktlöschung
-- `ProductSummaryWindow.cpp` – Ergebnisfenster
-- `ProjectPersistence.cpp/.h` – Laden/Speichern von `.pcproj`
-- `RestoredProductsCleanup.cpp/.h` – Bereinigung temporärer Wiederherstellungen beim Beenden
-- `ProductCalculator.rc` / `Resource.h` – Ressourcen und IDs
-- `productdata/` – Produktkatalog
-- `settings.json` – Grundeinstellungen
-- `ARCHITECTURE.md` – technische Architekturübersicht
+1. Open the project in Visual Studio.
+2. Select a configuration (e.g., `Debug | x64`).
+3. Build and run the project.
 
-## Aktueller Status
-- ✅ Produktauswahl und live Preisberechnung
-- ✅ Produktbearbeitung mit Synchronisation ins Hauptfenster
-- ✅ Neuanlage, Kopie und Löschung von Produkten
-- ✅ Ergebnisübersicht mit Clipboard-Kopie
-- ✅ Projekt speichern/laden (`.pcproj`) inkl. eingebetteter Produktkonfiguration
-- ✅ Bereinigung von `saved_projects/restored_products` beim Programmende
-- ✅ Währungssteuerung über Einstellungen
+Note:
+- Post-build copies `README.md`, `LICENSE.txt`, `settings.json`, and the `productdata` folder to the output directory.
 
-## Dokumentation
-- [ARCHITECTURE.md](ARCHITECTURE.md) – detaillierte Architektur
-- [CHANGELOG.md](CHANGELOG.md) – Änderungen pro Version
-- [productdata/README_Produkte.md](productdata/README_Produkte.md) – Produktdatenstruktur
-- [LICENSE.txt](LICENSE.txt) – Lizenz
+## Project Structure (brief)
+
+- `ProductCalculator.cpp/.h` – Main window, selection, price logic, and project actions
+- `EditProductWindow.cpp/.h` – Product editing
+- `NewProductCreator.cpp/.h` – Creating new products
+- `ProductCopyCreator.cpp/.h` – Product copy
+- `ProductDeletion.cpp/.h` – Product deletion
+- `ProductSummaryWindow.cpp` – Result window
+- `ProjectPersistence.cpp/.h` – Loading/saving `.pcproj`
+- `RestoredProductsCleanup.cpp/.h` – Cleanup of temporary restorations on exit
+- `ProductCalculator.rc` / `Resource.h` – Resources and IDs
+- `productdata/` – Product catalog
+- `settings.json` – Default settings
+- `ARCHITECTURE.md` – Technical architecture overview
+
+## Current Status
+
+- ✅ Product selection and live price calculation
+- ✅ Product editing with synchronization to main window
+- ✅ Creating new, copying, and deleting products
+- ✅ Result overview with Clipboard copy
+- ✅ Save/load project (`.pcproj`) including embedded product configuration
+- ✅ Cleanup of `saved_projects/restored_products` when program ends
+- ✅ Currency control via settings
+
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) – detailed architecture
+- [CHANGELOG.md](CHANGELOG.md) – changes per version
+- [productdata/README_Products.md](productdata/README_Products.md) – product data structure
+- [LICENSE.txt](LICENSE.txt) – license

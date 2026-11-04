@@ -1,23 +1,23 @@
-# Produktdaten
+# Product Data
 
-Jedes Produkt liegt in einem eigenen Unterordner unter `productdata/`.
+Each product is stored in its own subfolder under `productdata/`.
 
-## Neue Produkte in der Anwendung anlegen
+## Creating New Products in the Application
 
-1. In der Anwendung auf **Neues Produkt** klicken und einen Namen eingeben.
-2. Die Anwendung erstellt automatisch den Produktordner und darin die Datei `product.json`.
-3. Die Datei enthält zunächst die Produkt-ID, den Namen, die Artikelnummer `"-"`, einen Basispreis von `0.0` und eine leere Optionsliste.
-4. Basispreis, Artikelnummer und Optionen können anschließend über **Produkt bearbeiten** gepflegt werden.
+1. Click **New Product** in the application and enter a name.
+2. The application automatically creates the product folder and the `product.json` file within it.
+3. The file initially contains the product ID, name, article number `"-"`, a base price of `0.0`, and an empty options list.
+4. Base price, article number, and options can subsequently be maintained via **Edit Product**.
 
-## Datenstruktur
+## Data Structure
 
 `productdata/<productName>/product.json`
 
-Die JSON-Datei enthält:
+The JSON file contains:
 - `productId` (Text)
 - `productName` (Text)
-- `artikelnummer` (Text; bei fehlender Nummer `"-"`)
-- `basispreis` (Zahl)
-- `optionen` (Liste mit `name`, `artikelnummer` und `preis`; fehlende Options-Artikelnummern werden als `"-"` behandelt)
+- `artikelnummer` (Text; if no number, `"-"`)
+- `basispreis` (number)
+- `optionen` (list with `name`, `artikelnummer`, and `price`; missing option article numbers are treated as `"-"`)
 
-Eine manuelle Erstellung oder Bearbeitung der Ordner und JSON-Dateien ist weiterhin möglich, aber für neue Produkte nicht erforderlich.
+Manual creation or editing of folders and JSON files is still possible, but not required for new products.
