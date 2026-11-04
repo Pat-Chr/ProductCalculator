@@ -1,18 +1,22 @@
 {
   "produktId": "beispielprodukt",
   "produktname": "Beispielprodukt",
+  "artikelnummer": "-",
   "basispreis": 1000.0,
   "optionen": [
     {
       "name": "Standardausstattung",
+      "artikelnummer": "OPT-STD-001",
       "preis": 0.0
     },
     {
       "name": "Premium-Paket",
+      "artikelnummer": "OPT-PRM-001",
       "preis": 249.9
     },
     {
       "name": "Express-Fertigung",
+      "artikelnummer": "OPT-EXP-001",
       "preis": 149.5
     }
   ]

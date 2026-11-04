@@ -13,11 +13,13 @@ bool LoadProjectIntoCalculator(HWND hMainWindow, HWND hDialogOwner);
 struct ProductOption
 {
     std::wstring name;
+    std::wstring articleNumber = L"-";
     double price = 0.0;
 };
 
 struct ProductConfiguration
 {
+    std::wstring articleNumber = L"-";
     double basePrice = 0.0;
     std::vector<ProductOption> options;
 };

@@ -38,6 +38,7 @@ namespace
 	{
 		std::wostringstream out;
 		out << L"" << GetSelectedProductDisplayName() << L"\r\n";
+		out << L"Artikelnummer: " << g_currentConfiguration.articleNumber << L"\r\n";
 		out << L"Basispreis: " << FormatPrice(g_currentConfiguration.basePrice) << L"\r\n";
 		out << L"\r\nOptionen:\r\n";
 
@@ -55,10 +56,11 @@ namespace
 			const double lineTotal = static_cast<double>(quantity) * option.price;
 			total += lineTotal;
 
-			out << L" - " << option.name
-				<< L": " << quantity
-				<< L" x " << FormatPrice(option.price)
-				<< L" = " << FormatPrice(lineTotal)
+			const std::wstring optionArticleNumber = option.articleNumber.empty() ? L"-" : option.articleNumber;
+			out << L" - " << quantity
+				<< L"x " << option.name
+				<< L" (Art.-Nr.: " << optionArticleNumber << L")"
+				<< L": " << FormatPrice(lineTotal)
 				<< L"\r\n";
 		}
 

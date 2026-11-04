@@ -341,7 +341,7 @@ std::wstring GetCurrentCurrency()
 }
 
 // Lädt die Produktkonfiguration aus produkt.json.
-// Extrahiert basispreis und optionen mittels Regex.
+// Extrahiert artikelnummer, basispreis und optionen mittels Regex.
 // Gibt false zurück, wenn die Datei nicht gefunden oder ungültig ist.
 bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductConfiguration& configuration)
 {
@@ -358,6 +358,14 @@ bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductC
 
     try
     {
+        std::smatch articleNumberMatch;
+        const std::regex articleNumberRegex("\\\"artikelnummer\\\"\\s*:\\s*\\\"([^\\\"\\\\]*(?:\\\\.[^\\\"\\\\]*)*)\\\"");
+        if (std::regex_search(content, articleNumberMatch, articleNumberRegex))
+        {
+            const std::wstring loadedArticleNumber = ToWideString(articleNumberMatch[1].str());
+            configuration.articleNumber = loadedArticleNumber.empty() ? L"-" : loadedArticleNumber;
+        }
+
         std::smatch basePriceMatch;
         const std::regex basePriceRegex(R"("basispreis"\s*:\s*(-?\d+(?:\.\d+)?))");
         if (std::regex_search(content, basePriceMatch, basePriceRegex))
@@ -365,14 +373,19 @@ bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductC
             configuration.basePrice = std::stod(basePriceMatch[1].str());
         }
 
-        const std::regex optionRegex(R"opt(\{\s*"name"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,\s*"preis"\s*:\s*(-?\d+(?:\.\d+)?)\s*\})opt");
+        const std::regex optionRegex(R"opt(\{\s*"name"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,\s*(?:"artikelnummer"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,\s*)?"preis"\s*:\s*(-?\d+(?:\.\d+)?)\s*\})opt");
         for (std::sregex_iterator it(content.begin(), content.end(), optionRegex); it != std::sregex_iterator(); ++it)
         {
             const std::smatch& match = *it;
 
             ProductOption option;
             option.name = ToWideString(match[1].str());
-            option.price = std::stod(match[2].str());
+            if (match[2].matched)
+            {
+                const std::wstring loadedOptionArticleNumber = ToWideString(match[2].str());
+                option.articleNumber = loadedOptionArticleNumber.empty() ? L"-" : loadedOptionArticleNumber;
+            }
+            option.price = std::stod(match[3].str());
             configuration.options.push_back(std::move(option));
         }
     }
@@ -455,7 +468,8 @@ void RenderProductConfiguration(HWND hWnd)
     g_currentConfiguration = std::move(configuration);
     ClearDynamicOptionControls();
 
-    const std::wstring baseText = L"Basispreis: " + FormatPrice(g_currentConfiguration.basePrice);
+    const std::wstring productArticleNumber = g_currentConfiguration.articleNumber.empty() ? L"-" : g_currentConfiguration.articleNumber;
+    const std::wstring baseText = L"Basispreis: " + FormatPrice(g_currentConfiguration.basePrice) + L" | Artikelnummer: " + productArticleNumber;
     SetWindowTextW(g_hBasePriceLabel, baseText.c_str());
 
     // Jede Option bekommt ein eigenes Mengenfeld; Startwert bleibt bewusst 0.
@@ -463,7 +477,8 @@ void RenderProductConfiguration(HWND hWnd)
     for (size_t index = 0; index < g_currentConfiguration.options.size(); ++index)
     {
         const ProductOption& option = g_currentConfiguration.options[index];
-        const std::wstring optionText = option.name + L"(+" + FormatPrice(option.price) + L")";
+        const std::wstring optionArticleNumber = option.articleNumber.empty() ? L"-" : option.articleNumber;
+        const std::wstring optionText = option.name + L" | Art.-Nr.: " + optionArticleNumber + L" (+" + FormatPrice(option.price) + L")";
 
         const int labelWidth = 150;
         const int labelHeight = 20;

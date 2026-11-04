@@ -293,6 +293,7 @@ NewProductCreationStatus CreateNewProductFolderWithDefaults(HWND ownerWindow, st
 	file << "{\n"
 		<< "  \"produktId\": \"" << utf8ProductId << "\",\n"
 		<< "  \"produktname\": \"" << utf8ProductName << "\",\n"
+		<< "  \"artikelnummer\": \"-\",\n"
 		<< "  \"basispreis\": 0.0,\n"
 		<< "  \"optionen\": []\n"
 		<< "}\n";
