@@ -54,6 +54,7 @@ namespace
 		HWND optionQuantityInput = nullptr;	// Eingabefeld für die Menge der ausgewählten Option
 		HWND applyOptionQuantityButton = nullptr;	// Button zum Übernehmen der Menge
 		HWND addOptionButton = nullptr;		// Button zum Hinzufügen einer neuen Option
+		HWND updateOptionButton = nullptr;	// Button zum Ändern der ausgewählten Option
 		HWND removeOptionButton = nullptr;	// Button zum Löschen der ausgewählten Option
 		HWND moveOptionUpButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach oben
 		HWND moveOptionDownButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach unten
@@ -382,6 +383,33 @@ namespace
 		SetWindowTextW(state->optionQuantityInput, quantityText.c_str());
 	}
 
+	void SyncSelectedOptionEditorInputs(EditWindowState* state)
+	{
+		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionPriceInput == nullptr)
+		{
+			return;
+		}
+
+		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
+		if (selected == LB_ERR)
+		{
+			SetWindowTextW(state->optionNameInput, L"");
+			SetWindowTextW(state->optionPriceInput, L"0");
+			return;
+		}
+
+		const size_t selectedIndex = static_cast<size_t>(selected);
+		if (selectedIndex >= state->model.options.size())
+		{
+			return;
+		}
+
+		const ProductOption& option = state->model.options[selectedIndex];
+		SetWindowTextW(state->optionNameInput, option.name.c_str());
+		const std::wstring priceText = ToWideStringLocal(FormatJsonNumberLocal(option.price));
+		SetWindowTextW(state->optionPriceInput, priceText.c_str());
+	}
+
 	// Aktualisiert die ListBox mit allen aktuellen Optionen.
 	// Wird aufgerufen, wenn sich das Modell ändert (z.B. nach Hinzufügen/Löschen).
 	void RefreshOptionList(EditWindowState* state)
@@ -414,7 +442,12 @@ namespace
 			}
 			SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(selectionIndex), 0);
 		}
+		else
+		{
+			SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(-1), 0);
+		}
 
+		SyncSelectedOptionEditorInputs(state);
 		SyncSelectedOptionQuantityInput(state);
 	}
 
@@ -524,8 +557,9 @@ namespace
 		const int priceInputWidth = 90;
 		const int buttonGap = 8;
 		const int totalRightControlsWidth =
-			priceGap + priceLabelWidth + priceInputGap + priceInputWidth + buttonGap + smallButtonWidth + buttonGap + smallButtonWidth;
-		const int nameWidth = max(130, min(240, availableWidth - (nameInputLeft - margin) - totalRightControlsWidth));
+			priceGap + priceLabelWidth + priceInputGap + priceInputWidth +
+			buttonGap + smallButtonWidth + buttonGap + smallButtonWidth + buttonGap + smallButtonWidth;
+		const int nameWidth = max(120, min(220, availableWidth - (nameInputLeft - margin) - totalRightControlsWidth));
 
 		HWND nameLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_NAME + 100);
 		if (nameLabel != nullptr)
@@ -557,7 +591,13 @@ namespace
 			MoveWindow(state->addOptionButton, addButtonLeft, optionInputTop, smallButtonWidth, buttonHeight, TRUE);
 		}
 
-		const int removeButtonLeft = addButtonLeft + smallButtonWidth + buttonGap;
+		const int updateButtonLeft = addButtonLeft + smallButtonWidth + buttonGap;
+		if (state->updateOptionButton != nullptr)
+		{
+			MoveWindow(state->updateOptionButton, updateButtonLeft, optionInputTop, smallButtonWidth, buttonHeight, TRUE);
+		}
+
+		const int removeButtonLeft = updateButtonLeft + smallButtonWidth + buttonGap;
 		if (state->removeOptionButton != nullptr)
 		{
 			MoveWindow(state->removeOptionButton, removeButtonLeft, optionInputTop, smallButtonWidth, buttonHeight, TRUE);
@@ -739,6 +779,50 @@ namespace
 		// nicht versehentlich mit einem vorherigen Preis angelegt werden.
 		SetWindowTextW(state->optionPriceInput, L"0");
 		SetFocus(state->optionNameInput);
+	}
+
+	void UpdateSelectedOptionFromInput(HWND hWnd, EditWindowState* state)
+	{
+		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionPriceInput == nullptr)
+		{
+			return;
+		}
+
+		const LRESULT selected = SendMessageW(state->optionListControl, LB_GETCURSEL, 0, 0);
+		if (selected == LB_ERR)
+		{
+			MessageBoxW(hWnd, L"Bitte zuerst eine Option auswählen.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		const size_t selectedIndex = static_cast<size_t>(selected);
+		if (selectedIndex >= state->model.options.size())
+		{
+			return;
+		}
+
+		wchar_t nameBuffer[256] = {};
+		GetWindowTextW(state->optionNameInput, nameBuffer, static_cast<int>(std::size(nameBuffer)));
+		std::wstring name = nameBuffer;
+		if (name.empty())
+		{
+			MessageBoxW(hWnd, L"Bitte einen Optionsnamen eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		double price = 0.0;
+		if (!TryReadPrice(state->optionPriceInput, price))
+		{
+			MessageBoxW(hWnd, L"Bitte einen gültigen Preis eingeben.", L"Hinweis", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		state->model.options[selectedIndex].name = name;
+		state->model.options[selectedIndex].price = price;
+		RefreshOptionList(state);
+		SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(selectedIndex), 0);
+		SyncSelectedOptionEditorInputs(state);
+		SyncSelectedOptionQuantityInput(state);
 	}
 
 	// Entfernt die aktuell ausgewählte Option aus der Liste.
@@ -1025,6 +1109,21 @@ namespace
 				appInstance,
 				nullptr);
 
+			// Erstellt den Button zum Ändern der ausgewählten Option.
+			state->updateOptionButton = CreateWindowExW(
+				0,
+				L"BUTTON",
+				L"Option ändern",
+				WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+				0,
+				0,
+				0,
+				0,
+				hWnd,
+				reinterpret_cast<HMENU>(IDC_EDIT_OPTION_UPDATE),
+				appInstance,
+				nullptr);
+
 			// Erstellt den Button zum Löschen der ausgewählten Option.
 			state->removeOptionButton = CreateWindowExW(
 				0,
@@ -1169,6 +1268,7 @@ namespace
 		case WM_COMMAND:
 			if (LOWORD(wParam) == IDC_EDIT_OPTION_LIST && HIWORD(wParam) == LBN_SELCHANGE)
 			{
+				SyncSelectedOptionEditorInputs(state);
 				SyncSelectedOptionQuantityInput(state);
 				return 0;
 			}
@@ -1182,6 +1282,12 @@ namespace
 			if (LOWORD(wParam) == IDC_EDIT_OPTION_ADD)
 			{
 				AddOptionFromInput(hWnd, state);
+				return 0;
+			}
+
+			if (LOWORD(wParam) == IDC_EDIT_OPTION_UPDATE)
+			{
+				UpdateSelectedOptionFromInput(hWnd, state);
 				return 0;
 			}
 
@@ -1324,7 +1430,7 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
-		760,
+		880,
 		520,
 		ownerWindow,
 		nullptr,
