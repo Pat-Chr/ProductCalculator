@@ -2,6 +2,11 @@
 
 Relevante Änderungen pro Version. Neue Einträge kommen jeweils oben hinzu.
 
+## 1.1 – 2026-11-04
+
+- Produktoptionen können nun einzeln geändert werden.
+- Kalkulierte Optionen werden nun übersichtlicher dargestellt.
+
 ## 1.0 – 2026-11-01
 
 Erster dokumentierter Funktionsstand (Version im Info-Dialog).

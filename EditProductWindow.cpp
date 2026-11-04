@@ -411,7 +411,11 @@ namespace
 
 	void SyncSelectedOptionEditorInputs(EditWindowState* state)
 	{
+<<<<<<< HEAD
 		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionArticleNumberInput == nullptr || state->optionPriceInput == nullptr)
+=======
+		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionPriceInput == nullptr)
+>>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		{
 			return;
 		}
@@ -420,7 +424,10 @@ namespace
 		if (selected == LB_ERR)
 		{
 			SetWindowTextW(state->optionNameInput, L"");
+<<<<<<< HEAD
 			SetWindowTextW(state->optionArticleNumberInput, L"-");
+=======
+>>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 			SetWindowTextW(state->optionPriceInput, L"0");
 			return;
 		}
@@ -433,7 +440,10 @@ namespace
 
 		const ProductOption& option = state->model.options[selectedIndex];
 		SetWindowTextW(state->optionNameInput, option.name.c_str());
+<<<<<<< HEAD
 		SetWindowTextW(state->optionArticleNumberInput, option.articleNumber.c_str());
+=======
+>>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		const std::wstring priceText = ToWideStringLocal(FormatJsonNumberLocal(option.price));
 		SetWindowTextW(state->optionPriceInput, priceText.c_str());
 	}
@@ -603,10 +613,16 @@ namespace
 		const int priceInputWidth = 90;
 		const int buttonGap = 8;
 		const int totalRightControlsWidth =
+<<<<<<< HEAD
 			optionArticleGap + optionArticleLabelWidth + optionArticleInputGap + optionArticleInputWidth +
 			priceGap + priceLabelWidth + priceInputGap + priceInputWidth +
 			buttonGap + smallButtonWidth + buttonGap + smallButtonWidth + buttonGap + smallButtonWidth;
 		const int nameWidth = max(100, min(190, availableWidth - (nameInputLeft - margin) - totalRightControlsWidth));
+=======
+			priceGap + priceLabelWidth + priceInputGap + priceInputWidth +
+			buttonGap + smallButtonWidth + buttonGap + smallButtonWidth + buttonGap + smallButtonWidth;
+		const int nameWidth = max(120, min(220, availableWidth - (nameInputLeft - margin) - totalRightControlsWidth));
+>>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 
 		HWND nameLabel = GetDlgItem(g_hEditWindow, IDC_EDIT_OPTION_NAME + 100);
 		if (nameLabel != nullptr)
@@ -861,7 +877,11 @@ namespace
 
 	void UpdateSelectedOptionFromInput(HWND hWnd, EditWindowState* state)
 	{
+<<<<<<< HEAD
 		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionArticleNumberInput == nullptr || state->optionPriceInput == nullptr)
+=======
+		if (state == nullptr || state->optionListControl == nullptr || state->optionNameInput == nullptr || state->optionPriceInput == nullptr)
+>>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		{
 			return;
 		}
@@ -888,10 +908,13 @@ namespace
 			return;
 		}
 
+<<<<<<< HEAD
 		wchar_t articleNumberBuffer[256] = {};
 		GetWindowTextW(state->optionArticleNumberInput, articleNumberBuffer, static_cast<int>(std::size(articleNumberBuffer)));
 		const std::wstring articleNumber = NormalizeArticleNumber(articleNumberBuffer);
 
+=======
+>>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		double price = 0.0;
 		if (!TryReadPrice(state->optionPriceInput, price))
 		{
@@ -900,7 +923,10 @@ namespace
 		}
 
 		state->model.options[selectedIndex].name = name;
+<<<<<<< HEAD
 		state->model.options[selectedIndex].articleNumber = articleNumber;
+=======
+>>>>>>> dc90dae04c67cb32d5e1291b050fcc78dd5e42f1
 		state->model.options[selectedIndex].price = price;
 		RefreshOptionList(state);
 		SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(selectedIndex), 0);

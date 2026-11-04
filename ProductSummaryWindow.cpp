@@ -56,11 +56,10 @@ namespace
 			const double lineTotal = static_cast<double>(quantity) * option.price;
 			total += lineTotal;
 
-			const std::wstring optionArticleNumber = option.articleNumber.empty() ? L"-" : option.articleNumber;
-			out << L" - " << quantity
-				<< L"x " << option.name
-				<< L" (Art.-Nr.: " << optionArticleNumber << L")"
-				<< L": " << FormatPrice(lineTotal)
+			out << L" - " << option.name
+				<< L": " << quantity
+				<< L" x " << FormatPrice(option.price)
+				<< L" = " << FormatPrice(lineTotal)
 				<< L"\r\n";
 		}
 
