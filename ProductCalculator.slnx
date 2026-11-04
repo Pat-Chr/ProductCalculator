@@ -5,6 +5,7 @@
   </Configurations>
   <Folder Name="/Projektmappenelemente/">
     <File Path="ARCHITECTURE.md" />
+    <File Path="docs/images/productcalculator-screenshot.png.png" />
   </Folder>
   <Project Path="ProductCalculator.vcxproj" Id="b9a73280-ab1d-47b1-96cb-6a62af2bdb5b" />
 </Solution>
