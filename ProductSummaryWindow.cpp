@@ -23,8 +23,8 @@ namespace
 			{
 				wchar_t text[256] = {};
 				SendMessageW(g_hProductDropdown, CB_GETLBTEXT, static_cast<WPARAM>(sel), reinterpret_cast<LPARAM>(text));
-				// Fallback auf den sichtbaren Dropdown-Text, falls der globale Pfad
-				// noch nicht gesetzt ist (z.B. direkt nach Initialisierung).
+				// Fallback to the visible dropdown text if the global path
+				// has not been set yet (e.g. directly after initialization).
 				return text;
 			}
 		}
@@ -32,8 +32,8 @@ namespace
 		return L"(kein Produkt)";
 	}
 
-	// Baut den exportierbaren Text in einsem stabilen, zeilenbasierten Format auf.
-	// Wenn später weitere Preiskomponenten hinzukommen, sollten sie hier ergänzt werden.
+	// Builds the exportable text in a stable, line-based format.
+	// If additional price components are added later, they should be appended here.
 	std::wstring BuildSummaryText()
 	{
 		std::wostringstream out;

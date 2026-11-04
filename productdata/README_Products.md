@@ -1,21 +1,21 @@
 # Produktdaten
 
-Jedes Produkt liegt in einem eigenen Unterordner unter `produktdaten/`.
+Jedes Produkt liegt in einem eigenen Unterordner unter `productdata/`.
 
 ## Neue Produkte in der Anwendung anlegen
 
 1. In der Anwendung auf **Neues Produkt** klicken und einen Namen eingeben.
-2. Die Anwendung erstellt automatisch den Produktordner und darin die Datei `produkt.json`.
+2. Die Anwendung erstellt automatisch den Produktordner und darin die Datei `product.json`.
 3. Die Datei enthält zunächst die Produkt-ID, den Namen, die Artikelnummer `"-"`, einen Basispreis von `0.0` und eine leere Optionsliste.
 4. Basispreis, Artikelnummer und Optionen können anschließend über **Produkt bearbeiten** gepflegt werden.
 
 ## Datenstruktur
 
-`produktdaten/<produktname>/produkt.json`
+`productdata/<productName>/product.json`
 
 Die JSON-Datei enthält:
-- `produktId` (Text)
-- `produktname` (Text)
+- `productId` (Text)
+- `productName` (Text)
 - `artikelnummer` (Text; bei fehlender Nummer `"-"`)
 - `basispreis` (Zahl)
 - `optionen` (Liste mit `name`, `artikelnummer` und `preis`; fehlende Options-Artikelnummern werden als `"-"` behandelt)

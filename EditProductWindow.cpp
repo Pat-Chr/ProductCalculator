@@ -14,67 +14,67 @@
 
 namespace
 {
-	// Fensterklasse für das Bearbeitungsfenster.
-	// Wird verwendet, um ein separates Dialogfenster für Produktbearbeitung zu erstellen.
+	// Window class for the edit window.
+	// Used to create a separate dialog window for product editing.
 	constexpr wchar_t kEditWindowClass[] = L"ProductCalculatorEditWindow";
 	HWND g_hEditWindow = nullptr;
 
-	// Struktur zur Darstellung einer einzelnen Option (z.B. "Schrauber (+5 EUR)").
-	// Enthält den Optionsnamen, die optionale Artikelnummer und den zugehörigen Aufschlagpreis.
+	// Structure representing a single option (e.g. "Schrauber (+5 EUR)").
+	// Contains the option name, optional article number, and corresponding surcharge price.
 	struct ProductOption
 	{
-		std::wstring name;			// Name der Option (z.B. "Schrauber")
-		std::wstring articleNumber = L"-";	// Artikelnummer oder "-" falls nicht gesetzt
-		double price = 0.0;			// Preis für diese Option in der Standardwährung
+		std::wstring name;			// Option name (e.g. "Schrauber")
+		std::wstring articleNumber = L"-";	// Article number or "-" if not set
+		double price = 0.0;			// Price for this option in the default currency
 	};
 
-	// Modellstruktur für die Produktbearbeitung.
-	// Enthält alle Daten, die im JSON gespeichert werden:
-	// - produktId: eindeutige Identifikation des Produkts
-	// - produktname: menschlich lesbarer Name
-	// - artikelnummer: optionale Artikelnummer ("-" wenn nicht vorhanden)
-	// - basispreis: Grundpreis ohne Optionen
-	// - optionen: Liste aller verfügbaren Optionen mit Namen, Artikelnummern und Preisen
+	// Model structure for product editing.
+	// Contains all data persisted in JSON:
+	// - productId: unique product identifier
+	// - productName: human-readable name
+	// - artikelnummer: optional article number ("-" if not present)
+	// - basispreis: base price without options
+	// - optionen: list of all available options with names, article numbers, and prices
 	struct ProductEditorModel
 	{
-		std::wstring productId;		// Eindeutige ID des Produkts (z.B. "PROD-001")
-		std::wstring productName;	// Menschlicher Produktname (z.B. "Basispaket")
-		std::wstring articleNumber = L"-";	// Artikelnummer oder "-" falls nicht gesetzt
-		double basePrice = 0.0;		// Basispreis ohne Optionen
-		std::vector<ProductOption> options;	// Liste aller Optionen
+		std::wstring productId;		// Unique product ID (e.g. "PROD-001")
+		std::wstring productName;	// Human-readable product name (e.g. "Basispaket")
+		std::wstring articleNumber = L"-";	// Article number or "-" if not set
+		double basePrice = 0.0;		// Base price without options
+		std::vector<ProductOption> options;	// List of all options
 	};
 
-	// Hilfsstruktur zum Verwalten des Zustands des Bearbeitungsfensters.
-	// Enthält alle HWNDs der Controls und die aktuellen Daten.
+	// Helper structure managing the edit window state.
+	// Contains all control HWNDs and the current data.
 	struct EditWindowState
 	{
-		std::wstring productFolderPath;	// Pfad zum Produktdaten-Verzeichnis
-		HWND ownerWindow = nullptr;			// Referenz zum Hauptfenster (für Nachrichten)
-		HWND optionListControl = nullptr;	// ListBox zur Anzeige aller Optionen
-		HWND basePriceInput = nullptr;		// Eingabefeld für den Basispreis
-		HWND articleNumberInput = nullptr;	// Eingabefeld für die Produkt-Artikelnummer
-		HWND optionNameInput = nullptr;		// Eingabefeld für den Optionsnamen
-		HWND optionArticleNumberInput = nullptr;	// Eingabefeld für die Options-Artikelnummer
-		HWND optionPriceInput = nullptr;		// Eingabefeld für den Optionspreis
-		HWND optionQuantityInput = nullptr;	// Eingabefeld für die Menge der ausgewählten Option
-		HWND applyOptionQuantityButton = nullptr;	// Button zum Übernehmen der Menge
-		HWND addOptionButton = nullptr;		// Button zum Hinzufügen einer neuen Option
-		HWND updateOptionButton = nullptr;	// Button zum Ändern der ausgewählten Option
-		HWND removeOptionButton = nullptr;	// Button zum Löschen der ausgewählten Option
-		HWND moveOptionUpButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach oben
-		HWND moveOptionDownButton = nullptr;	// Button zum Verschieben der ausgewählten Option nach unten
-		HWND saveButton = nullptr;			// Speichern-Button
-		HWND cancelButton = nullptr;			// Schließen/Abbrechen-Button
-		HWND showSummaryButton = nullptr;	// Öffnet die Zusammenfassung des geladenen Projekts
-		HWND saveProjectButton = nullptr;	// Speichert den aktuellen Projektstand
-		bool showProjectSaveButton = true;	// Sichtbarkeit des Projekt-Speichern-Buttons
-		bool showProductSaveButton = true;	// Sichtbarkeit des Produkt-Speichern-Buttons
-		ProductEditorModel model;			// Aktuelle Produktmodell-Daten
+		std::wstring productFolderPath;	// Path to the product data directory
+		HWND ownerWindow = nullptr;			// Reference to the main window (for messages)
+		HWND optionListControl = nullptr;	// ListBox showing all options
+		HWND basePriceInput = nullptr;		// Input field for base price
+		HWND articleNumberInput = nullptr;	// Input field for product article number
+		HWND optionNameInput = nullptr;		// Input field for option name
+		HWND optionArticleNumberInput = nullptr;	// Input field for option article number
+		HWND optionPriceInput = nullptr;		// Input field for option price
+		HWND optionQuantityInput = nullptr;	// Input field for selected option quantity
+		HWND applyOptionQuantityButton = nullptr;	// Button to apply quantity
+		HWND addOptionButton = nullptr;		// Button to add a new option
+		HWND updateOptionButton = nullptr;	// Button to update the selected option
+		HWND removeOptionButton = nullptr;	// Button to delete the selected option
+		HWND moveOptionUpButton = nullptr;	// Button to move the selected option up
+		HWND moveOptionDownButton = nullptr;	// Button to move the selected option down
+		HWND saveButton = nullptr;			// Save button
+		HWND cancelButton = nullptr;			// Close/cancel button
+		HWND showSummaryButton = nullptr;	// Opens the summary of the loaded project
+		HWND saveProjectButton = nullptr;	// Saves the current project state
+		bool showProjectSaveButton = true;	// Visibility of the project-save button
+		bool showProductSaveButton = true;	// Visibility of the product-save button
+		ProductEditorModel model;			// Current product model data
 	};
 
-	// Konvertiert einen UTF-8 String in einen WideString.
-	// Fallback auf den lokalen Codepage, wenn UTF-8 nicht funktioniert.
-	// Wird benötigt, um JSON-Strings aus Textdateien zu lesen.
+	// Converts a UTF-8 string to a wide string.
+	// Falls back to the local code page if UTF-8 does not work.
+	// Needed to read JSON strings from text files.
 	std::wstring ToWideStringLocal(const std::string& text)
 	{
 		if (text.empty())
@@ -103,8 +103,8 @@ namespace
 		return result;
 	}
 
-	// Konvertiert einen WideString in einen UTF-8 String.
-	// Wird benötigt, um JSON-Daten für die Speicherung in Textdateien vorzubereiten.
+	// Converts a wide string to a UTF-8 string.
+	// Needed to prepare JSON data for storing in text files.
 	std::string ToUtf8StringLocal(const std::wstring& text)
 	{
 		if (text.empty())
@@ -123,9 +123,9 @@ namespace
 		return result;
 	}
 
-	// Escapt JSON-spezifische Sonderzeichen in einem WideString.
-	// Verhindert Syntaxfehler im JSON-Output (z.B. Anführungszeichen, Backslashes).
-	// Beispiel: "Mein Preis" wird zu \"Mein Preis\"
+	// Escapes JSON-specific special characters in a wide string.
+	// Prevents syntax errors in JSON output (e.g. quotes, backslashes).
+	// Example: "Mein Preis" becomes \"Mein Preis\"
 	std::wstring EscapeJsonString(const std::wstring& text)
 	{
 		std::wstring escaped;
@@ -159,9 +159,9 @@ namespace
 		return escaped;
 	}
 
-	// Entescapt JSON-spezifische Sonderzeichen in einem WideString.
-	// Wird verwendet, um JSON-Strings beim Laden wiederherzustellen.
-	// Beispiel: \"Mein Preis\" wird zurück zu "Mein Preis"
+	// Unescapes JSON-specific special characters in a wide string.
+	// Used to restore JSON strings while loading.
+	// Example: \"Mein Preis\" becomes "Mein Preis"
 	std::wstring UnescapeJsonString(const std::wstring& text)
 	{
 		std::wstring result;
@@ -202,9 +202,9 @@ namespace
 		return result;
 	}
 
-	// Formatiert einen doubles als JSON-kompatible Zeichenkette.
-	// Entfernt unnötige Nachkommastellen (z.B. 10.000000 -> 10)
-	// Verwendet keine Exponentennotation für bessere Lesbarkeit.
+	// Formats a double as a JSON-compatible string.
+	// Removes unnecessary trailing decimal places (e.g. 10.000000 -> 10).
+	// Avoids exponent notation for better readability.
 	std::string FormatJsonNumberLocal(double value)
 	{
 		std::ostringstream stream;
@@ -230,11 +230,11 @@ namespace
 		return text;
 	}
 
-	// Lädt den Inhalt der produkt.json Datei als Text.
-	// Gibt false zurück, wenn die Datei nicht gefunden oder nicht lesbar ist.
+	// Loads the content of product.json as text.
+	// Returns false if the file is missing or unreadable.
 	bool TryLoadProductJsonText(const std::wstring& productFolderPath, std::string& jsonText)
 	{
-		const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"produkt.json";
+		const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"product.json";
 		std::ifstream file(configPath, std::ios::binary);
 		if (!file)
 		{
@@ -245,12 +245,12 @@ namespace
 		return true;
 	}
 
-	// Speichert den JSON-Text in die produkt.json Datei.
-	// Überschreibt den bestehenden Inhalt (trunc flag).
-	// Gibt false zurück, wenn die Datei nicht geschrieben werden kann.
+	// Saves the JSON text to product.json.
+	// Overwrites existing content (trunc flag).
+	// Returns false if the file cannot be written.
 	bool TrySaveProductJsonText(const std::wstring& productFolderPath, const std::string& jsonText)
 	{
-		const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"produkt.json";
+		const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"product.json";
 		std::ofstream file(configPath, std::ios::binary | std::ios::trunc);
 		if (!file)
 		{
@@ -261,10 +261,10 @@ namespace
 		return static_cast<bool>(file);
 	}
 
-	// Parst das Produktmodell aus dem JSON-Text.
-	// Extrahiert produktId, produktname, artikelnummer, basispreis und optionen mittels Regex.
-	// Gibt false zurück, wenn der Parsing-Fehler auftritt (z.B. ungültiges JSON).
-	// Hinweis: Bei komplexeren JSON-Strukturen sollte ein vollwertiger JSON-Parser verwendet werden.
+	// Parses the product model from JSON text.
+	// Extracts productId, productName, artikelnummer, basispreis, and optionen using regex.
+	// Returns false if a parsing error occurs (e.g. invalid JSON).
+	// Note: For more complex JSON structures, a full JSON parser should be used.
 	bool TryParseProductModel(const std::string& jsonText, ProductEditorModel& model)
 	{
 		ProductEditorModel parsedModel;
@@ -276,13 +276,13 @@ namespace
 		try
 		{
 			std::smatch idMatch;
-			if (std::regex_search(jsonText, idMatch, std::regex("\\\"produktId\\\"\\s*:\\s*\\\"([^\\\"\\\\]*(?:\\\\.[^\\\"\\\\]*)*)\\\"")))
+			if (std::regex_search(jsonText, idMatch, std::regex("\\\"productId\\\"\\s*:\\s*\\\"([^\\\"\\\\]*(?:\\\\.[^\\\"\\\\]*)*)\\\"")))
 			{
 				parsedModel.productId = UnescapeJsonString(ToWideStringLocal(idMatch[1].str()));
 			}
 
 			std::smatch nameMatch;
-			if (std::regex_search(jsonText, nameMatch, std::regex("\\\"produktname\\\"\\s*:\\s*\\\"([^\\\"\\\\]*(?:\\\\.[^\\\"\\\\]*)*)\\\"")))
+			if (std::regex_search(jsonText, nameMatch, std::regex("\\\"productName\\\"\\s*:\\s*\\\"([^\\\"\\\\]*(?:\\\\.[^\\\"\\\\]*)*)\\\"")))
 			{
 				parsedModel.productName = UnescapeJsonString(ToWideStringLocal(nameMatch[1].str()));
 			}
@@ -343,15 +343,15 @@ namespace
 		return true;
 	}
 
-	// Baut den JSON-Text aus dem Produktmodell.
-	// Die Feldnamen und Reihenfolge sind absichtlich stabil gehalten,
-	// damit bestehende Produktdateien und externe Werkzeuge ohne Anpassung weiter funktionieren.
+	// Builds JSON text from the product model.
+	// Field names and order are intentionally kept stable,
+	// so existing product files and external tools continue working without changes.
 	std::string BuildProductJson(const ProductEditorModel& model)
 	{
 		std::wostringstream stream;
 		stream << L"{\n";
-		stream << L"  \"produktId\": \"" << EscapeJsonString(model.productId) << L"\",\n";
-		stream << L"  \"produktname\": \"" << EscapeJsonString(model.productName) << L"\",\n";
+		stream << L"  \"productId\": \"" << EscapeJsonString(model.productId) << L"\",\n";
+		stream << L"  \"productName\": \"" << EscapeJsonString(model.productName) << L"\",\n";
 		stream << L"  \"artikelnummer\": \"" << EscapeJsonString(model.articleNumber) << L"\",\n";
 		stream << L"  \"basispreis\": " << ToWideStringLocal(FormatJsonNumberLocal(model.basePrice)) << L",\n";
 		stream << L"  \"optionen\": [\n";
@@ -376,7 +376,7 @@ namespace
 		return ToUtf8StringLocal(stream.str());
 	}
 
-	// Erzeugt den Anzeige-Text für eine Option in der ListBox.
+	// Creates the display text for an option in the ListBox.
 	std::wstring FormatOptionDisplayText(const ProductOption& option, int quantity, bool showQuantity)
 	{
 		std::wostringstream stream;
@@ -451,8 +451,8 @@ namespace
 		SetWindowTextW(state->optionPriceInput, priceText.c_str());
 	}
 
-	// Aktualisiert die ListBox mit allen aktuellen Optionen.
-	// Wird aufgerufen, wenn sich das Modell ändert (z.B. nach Hinzufügen/Löschen).
+	// Updates the ListBox with all current options.
+	// Called whenever the model changes (e.g. after add/remove).
 	void RefreshOptionList(EditWindowState* state)
 	{
 		if (state == nullptr || state->optionListControl == nullptr)
@@ -492,9 +492,9 @@ namespace
 		SyncSelectedOptionQuantityInput(state);
 	}
 
-	// Passt die Position und Größe aller Fenster-Controls an.
-	// Berechnet das Layout basierend auf dem verfügbaren Platz im Fenster.
-	// Wird bei WM_SIZE-Ereignissen und beim ersten Erstellen aufgerufen.
+	// Adjusts position and size of all window controls.
+	// Computes layout based on available space in the window.
+	// Called on WM_SIZE events and during initial creation.
 	void LayoutEditWindowControls(EditWindowState* state, int clientWidth, int clientHeight)
 	{
 		if (state == nullptr)
@@ -711,10 +711,10 @@ namespace
 		}
 	}
 
-	// Versucht den Preis aus einem Eingabefeld zu lesen.
-	// Konvertiert Kommas in Punkte (für deutsche Zahlenformate).
-	// Gibt true zurück, wenn ein gültiger Preis gelesen wurde.
-	// Gibt false zurück, wenn das Feld leer ist oder ungültige Daten enthält.
+	// Tries to read the price from an input field.
+	// Converts commas to dots (for German number formats).
+	// Returns true if a valid price was read.
+	// Returns false if the field is empty or contains invalid data.
 	bool TryReadPrice(HWND priceInput, double& price)
 	{
 		if (priceInput == nullptr)
@@ -831,10 +831,10 @@ namespace
 		SyncSelectedOptionQuantityInput(state);
 	}
 
-	// Fügt eine neue Option aus den Eingabefeldern hinzu.
-	// Validiert, dass ein nicht-leerer Name eingegeben wurde.
-	// Der Preis wird auf 0 gesetzt (Standardwert).
-	// Aktualisiert die ListBox und setzt den Fokus zurück auf den Namen-Eingabe.
+	// Adds a new option from the input fields.
+	// Validates that a non-empty name was entered.
+	// The price is set to 0 (default value).
+	// Updates the ListBox and returns focus to the name input.
 	void AddOptionFromInput(HWND hWnd, EditWindowState* state)
 	{
 		if (state == nullptr || state->optionNameInput == nullptr || state->optionArticleNumberInput == nullptr || state->optionPriceInput == nullptr)
@@ -866,8 +866,8 @@ namespace
 		RefreshOptionList(state);
 		SetWindowTextW(state->optionNameInput, L"");
 		SetWindowTextW(state->optionArticleNumberInput, L"-");
-		// Der Preis wird bewusst auf 0 zurückgesetzt, damit neue Optionen
-		// nicht versehentlich mit einem vorherigen Preis angelegt werden.
+		// The price is intentionally reset to 0 so new options
+		// are not accidentally created with a previous price.
 		SetWindowTextW(state->optionPriceInput, L"0");
 		SetFocus(state->optionNameInput);
 	}
@@ -921,9 +921,9 @@ namespace
 		SyncSelectedOptionQuantityInput(state);
 	}
 
-	// Entfernt die aktuell ausgewählte Option aus der Liste.
-	// Zeigt eine Meldung an, wenn keine Option ausgewählt ist.
-	// Aktualisiert danach die ListBox.
+	// Removes the currently selected option from the list.
+	// Shows a message if no option is selected.
+	// Updates the ListBox afterward.
 	void RemoveSelectedOption(HWND hWnd, EditWindowState* state)
 	{
 		if (state == nullptr || state->optionListControl == nullptr)
@@ -948,8 +948,8 @@ namespace
 		RefreshOptionList(state);
 	}
 
-	// Verschiebt die aktuell ausgewählte Option innerhalb der Liste.
-	// Richtung: -1 nach oben, +1 nach unten.
+	// Moves the currently selected option within the list.
+	// Direction: -1 up, +1 down.
 	void MoveSelectedOption(HWND hWnd, EditWindowState* state, int direction)
 	{
 		if (state == nullptr || state->optionListControl == nullptr || direction == 0)
@@ -976,11 +976,11 @@ namespace
 		SendMessageW(state->optionListControl, LB_SETCURSEL, static_cast<WPARAM>(targetIndex), 0);
 	}
 
-	// Speichert das Produkt und aktualisiert das Hauptfenster.
-	// Baut den JSON-Text aus dem aktuellen Modell.
-	// Schreibt die Daten in produkt.json.
-	// Sendet eine WM_PRODUCT_CONFIGURATION_UPDATED-Nachricht an das Hauptfenster.
-	// Zeigt eine Erfolgsmeldung an.
+	// Saves the product and refreshes the main window.
+	// Builds JSON text from the current model.
+	// Writes the data to product.json.
+	// Sends a WM_PRODUCT_CONFIGURATION_UPDATED message to the main window.
+	// Shows a success message.
 	void SaveAndRefresh(HWND hWnd, EditWindowState* state)
 	{
 		if (state == nullptr)
@@ -1016,16 +1016,16 @@ namespace
 
 		if (state->ownerWindow != nullptr)
 		{
-			// Das Hauptfenster wird nach jedem Speichern sofort synchronisiert.
-			// Zusätzliche abgeleitete UI-Ansichten sollten ebenfalls auf diese Nachricht hören.
+			// The main window is synchronized immediately after each save.
+			// Additional derived UI views should also listen to this message.
 			SendMessageW(state->ownerWindow, WM_PRODUCT_CONFIGURATION_UPDATED, 0, 0);
 		}
 
 		MessageBoxW(hWnd, L"Produkt wurde gespeichert und aktualisiert.", L"Produkt bearbeiten", MB_OK | MB_ICONINFORMATION);
 	}
 
-	// Message-Dispatcher für das Bearbeitungsfenster.
-	// Verarbeitet CREATE, SIZE, COMMAND, CLOSE und DESTROY Nachrichten.
+	// Message dispatcher for the edit window.
+	// Handles CREATE, SIZE, COMMAND, CLOSE, and DESTROY messages.
 	LRESULT CALLBACK EditWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		EditWindowState* state = reinterpret_cast<EditWindowState*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
@@ -1045,7 +1045,7 @@ namespace
 			const std::wstring optionArticleNumberLabelText = L"Art.-Nr.:";
 			const std::wstring optionPriceLabelText = L"Preis (" + currency + L"):";
 
-			// Erstellt das Label und Eingabefeld für den Basispreis.
+			// Creates the label and input field for the base price.
 			CreateWindowExW(
 				0,
 				L"STATIC",
@@ -1102,7 +1102,7 @@ namespace
 				appInstance,
 				nullptr);
 
-			// Erstellt die ListBox zur Anzeige aller Optionen.
+			// Creates the ListBox that displays all options.
 			CreateWindowExW(
 				0,
 				L"STATIC",
@@ -1173,7 +1173,7 @@ namespace
 				appInstance,
 				nullptr);
 
-			// Erstellt das Label und Eingabefeld für den Optionsnamen.
+			// Creates the label and input field for the option name.
 			CreateWindowExW(
 				0,
 				L"STATIC",
@@ -1230,7 +1230,7 @@ namespace
 				appInstance,
 				nullptr);
 
-			// Erstellt das Label und Eingabefeld für den Optionspreis.
+			// Creates the label and input field for the option price.
 			CreateWindowExW(
 				0,
 				L"STATIC",
@@ -1259,7 +1259,7 @@ namespace
 				appInstance,
 				nullptr);
 
-			// Erstellt den Button zum Hinzufügen einer neuen Option.
+			// Creates the button to add a new option.
 			state->addOptionButton = CreateWindowExW(
 				0,
 				L"BUTTON",
@@ -1274,7 +1274,7 @@ namespace
 				appInstance,
 				nullptr);
 
-			// Erstellt den Button zum Ändern der ausgewählten Option.
+			// Creates the button to edit the selected option.
 			state->updateOptionButton = CreateWindowExW(
 				0,
 				L"BUTTON",
@@ -1289,7 +1289,7 @@ namespace
 				appInstance,
 				nullptr);
 
-			// Erstellt den Button zum Löschen der ausgewählten Option.
+			// Creates the button to delete the selected option.
 			state->removeOptionButton = CreateWindowExW(
 				0,
 				L"BUTTON",
@@ -1304,7 +1304,7 @@ namespace
 				appInstance,
 				nullptr);
 
-			// Erstellt den Button zum Verschieben der ausgewählten Option nach oben.
+			// Creates the button to move the selected option up.
 			state->moveOptionUpButton = CreateWindowExW(
 				0,
 				L"BUTTON",
@@ -1319,7 +1319,7 @@ namespace
 				appInstance,
 				nullptr);
 
-			// Erstellt den Button zum Verschieben der ausgewählten Option nach unten.
+			// Creates the button to move the selected option down.
 			state->moveOptionDownButton = CreateWindowExW(
 				0,
 				L"BUTTON",
@@ -1334,7 +1334,7 @@ namespace
 				appInstance,
 				nullptr);
 
-			// Erstellt den Button zum Öffnen der Projektzusammenfassung.
+			// Creates the button for opening the project summary.
 			state->showSummaryButton = CreateWindowExW(
 				0,
 				L"BUTTON",
@@ -1353,7 +1353,7 @@ namespace
 				ShowWindow(state->showSummaryButton, ShouldShowSummaryButton(state) ? SW_SHOW : SW_HIDE);
 			}
 
-			// Erstellt den Button zum Speichern des aktuellen Projektstands.
+			// Creates the button for saving the current project state.
 			state->saveProjectButton = CreateWindowExW(
 				0,
 				L"BUTTON",
@@ -1372,7 +1372,7 @@ namespace
 				ShowWindow(state->saveProjectButton, state->showProjectSaveButton ? SW_SHOW : SW_HIDE);
 			}
 
-			// Erstellt den Speichern-Button (Standardbutton).
+			// Creates the save button (default button).
 			state->saveButton = CreateWindowExW(
 				0,
 				L"BUTTON",
@@ -1391,7 +1391,7 @@ namespace
 				ShowWindow(state->saveButton, state->showProductSaveButton ? SW_SHOW : SW_HIDE);
 			}
 
-			// Erstellt den Schließen/Abbrechen-Button.
+			// Creates the close/cancel button.
 			state->cancelButton = CreateWindowExW(
 				0,
 				L"BUTTON",
@@ -1441,7 +1441,7 @@ namespace
 			return 0;
 		}
 		case WM_SIZE:
-			// Passt das Layout an, wenn sich die Fenstergröße ändert.
+			// Adjusts the layout when the window size changes.
 			LayoutEditWindowControls(state, LOWORD(lParam), HIWORD(lParam));
 			return 0;
 		case WM_COMMAND:
@@ -1540,10 +1540,10 @@ namespace
 	}
 }
 
-// Öffnet das Bearbeitungsfenster für die Produktbearbeitung.
-// Falls das Fenster bereits offen ist, wird es nur fokussiert und wiederhergestellt.
-// Gibt true zurück, wenn das Fenster erfolgreich geöffnet wurde (oder bereits offen war).
-// Gibt false zurück, wenn ownerWindow nullptr oder productFolderPath leer ist.
+// Opens the edit window for product editing.
+// If the window is already open, it is only focused and restored.
+// Returns true if the window was opened successfully (or was already open).
+// Returns false if ownerWindow is nullptr or productFolderPath is empty.
 bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPath, bool showProjectSaveButton, bool showProductSaveButton)
 {
 	if (ownerWindow == nullptr || productFolderPath.empty())
@@ -1578,7 +1578,7 @@ bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPa
 			LayoutEditWindowControls(state, clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
 		}
 
-		// Es bleibt immer nur ein Bearbeitungsfenster offen; erneute Aufrufe fokussieren nur.
+		// Only one edit window remains open; repeated calls only focus it.
 		ShowWindow(g_hEditWindow, SW_RESTORE);
 		SetForegroundWindow(g_hEditWindow);
 		return true;

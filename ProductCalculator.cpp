@@ -7,6 +7,7 @@
 #include "ProjectPersistence.h"
 #include "EasterEggClickTracker.h"
 #include "RestoredProductsCleanup.h"
+#include "ProductDataDirectoryResolver.h"
 
 #include <algorithm>
 #include <fstream>
@@ -62,32 +63,10 @@ bool TrySelectProductByName(HWND hCombo, const std::wstring& productName);
 bool TryLoadProductJsonUtf8(const std::wstring& productFolderPath, std::string& jsonUtf8);
 bool TryRestoreEmbeddedProduct(const SavedProjectData& data, const std::wstring& loadedFilePath, std::wstring& restoredProductPath);
 
-// Sucht den produktdaten-Ordner rekursiv vom EXE-Verzeichnis nach oben,
-// damit zukünftige Paketierungsvarianten ohne feste Pfade funktionieren.
+// Resolves the productdata directory and migrates a legacy produktdaten directory when found.
 std::filesystem::path FindProductDataDirectory()
 {
-    wchar_t modulePath[MAX_PATH] = {};
-    GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
-
-    std::filesystem::path currentPath = std::filesystem::path(modulePath).parent_path();
-    while (!currentPath.empty())
-    {
-        const std::filesystem::path candidatePath = currentPath / L"produktdaten";
-        std::error_code ec;
-        if (std::filesystem::exists(candidatePath, ec) && std::filesystem::is_directory(candidatePath, ec))
-        {
-            return candidatePath;
-        }
-
-        if (currentPath == currentPath.root_path())
-        {
-            break;
-        }
-
-        currentPath = currentPath.parent_path();
-    }
-
-    return {};
+    return FindOrMigrateProductDataDirectory();
 }
 
 bool SelectProductByPath(HWND hCombo, const std::wstring& productFolderPath)
@@ -144,7 +123,7 @@ std::wstring SanitizeFolderName(std::wstring name)
 
     if (name.empty())
     {
-        name = L"produkt";
+        name = L"product";
     }
 
     return name;
@@ -158,7 +137,7 @@ bool TryLoadProductJsonUtf8(const std::wstring& productFolderPath, std::string& 
         return false;
     }
 
-    const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"produkt.json";
+    const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"product.json";
     std::ifstream file(configPath, std::ios::binary);
     if (!file)
     {
@@ -199,7 +178,7 @@ bool TryRestoreEmbeddedProduct(const SavedProjectData& data, const std::wstring&
         return false;
     }
 
-    const std::filesystem::path configPath = restoredFolderPath / L"produkt.json";
+    const std::filesystem::path configPath = restoredFolderPath / L"product.json";
     std::ofstream file(configPath, std::ios::binary | std::ios::trunc);
     if (!file)
     {
@@ -216,8 +195,8 @@ bool TryRestoreEmbeddedProduct(const SavedProjectData& data, const std::wstring&
     return true;
 }
 
-// Sucht eine Datei rekursiv vom EXE-Verzeichnis nach oben,
-// um dynamische Konfigurationsdateien zu finden.
+// Searches for a file recursively upward from the EXE directory,
+// to find dynamic configuration files.
 std::filesystem::path FindFileInCurrentOrParents(const std::wstring& fileName)
 {
     wchar_t modulePath[MAX_PATH] = {};
@@ -244,8 +223,8 @@ std::filesystem::path FindFileInCurrentOrParents(const std::wstring& fileName)
     return {};
 }
 
-// Konvertiert einen UTF-8 String in einen Unicode-WideString.
-// Fallback auf den lokalen Codepage, wenn UTF-8 nicht funktioniert.
+// Converts a UTF-8 string to a Unicode wide string.
+// Falls back to the local code page if UTF-8 conversion fails.
 std::wstring ToWideString(const std::string& text)
 {
     if (text.empty())
@@ -274,9 +253,9 @@ std::wstring ToWideString(const std::string& text)
     return result;
 }
 
-// Lädt die Anwendungs-Einstellungen aus settings.json.
-// Setzt Standardwerte zurück und extrahiert die standardwaehrung aus der JSON-Datei.
-// Gibt true zurück, wenn die Datei erfolgreich gelesen wurde.
+// Loads application settings from settings.json.
+// Resets defaults and extracts standardwaehrung from the JSON file.
+// Returns true if the file was read successfully.
 bool TryLoadAppSettings(AppSettings& settings)
 {
     settings = AppSettings{};
@@ -316,8 +295,8 @@ bool TryLoadAppSettings(AppSettings& settings)
     return true;
 }
 
-// Formatiert einen Preis mit zwei Dezimalstellen und fügt die Währung hinzu.
-// Beispiel: "123,45 EUR"
+// Formats a price with two decimal places and appends the currency.
+// Example: "123,45 EUR"
 std::wstring FormatPrice(double value)
 {
     std::wostringstream stream;
@@ -340,14 +319,14 @@ std::wstring GetCurrentCurrency()
     return g_appSettings.standardwaehrung;
 }
 
-// Lädt die Produktkonfiguration aus produkt.json.
-// Extrahiert artikelnummer, basispreis und optionen mittels Regex.
-// Gibt false zurück, wenn die Datei nicht gefunden oder ungültig ist.
+// Loads the product configuration from product.json.
+// Extracts artikelnummer, basispreis and optionen using regex.
+// Returns false if the file is missing or invalid.
 bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductConfiguration& configuration)
 {
     configuration = ProductConfiguration{};
 
-    const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"produkt.json";
+    const std::filesystem::path configPath = std::filesystem::path(productFolderPath) / L"product.json";
     std::ifstream file(configPath, std::ios::binary);
     if (!file)
     {
@@ -411,8 +390,8 @@ bool TryLoadProductConfiguration(const std::wstring& productFolderPath, ProductC
     return true;
 }
 
-// Entfernt alle dynamisch erstellten Option-Controls (Labels und Quantity-Inputs).
-// Wird aufgerufen, wenn die Produktkonfiguration sich ändert.
+// Removes all dynamically created option controls (labels and quantity inputs).
+// Called when the product configuration changes.
 void ClearDynamicOptionControls()
 {
     for (HWND label : g_optionLabels)
@@ -435,8 +414,8 @@ void ClearDynamicOptionControls()
     g_optionQuantityInputs.clear();
 }
 
-// Berechnet den Endpreis basierend auf Basispreis und gewählten Optionen.
-// Liest die Mengen aus den Quantity-Inputs und multipliziert mit Option-Preisen.
+// Calculates the final price based on base price and selected options.
+// Reads quantities from quantity inputs and multiplies by option prices.
 void UpdateTotalPriceLabel()
 {
     double totalPrice = g_currentConfiguration.basePrice;
@@ -459,8 +438,8 @@ void UpdateTotalPriceLabel()
     SetWindowTextW(g_hTotalPriceLabel, totalText.c_str());
 }
 
-// Rendert die Produktkonfiguration im Fenster.
-// Erstellt Labels und Quantity-Inputs für jede Option und aktualisiert den Endpreis.
+// Renders the product configuration in the window.
+// Creates labels and quantity inputs for each option and updates the final price.
 void RenderProductConfiguration(HWND hWnd)
 {
     if (g_selectedProductPath.empty())
@@ -486,8 +465,8 @@ void RenderProductConfiguration(HWND hWnd)
     const std::wstring baseText = L"Basispreis: " + FormatPrice(g_currentConfiguration.basePrice) + L" | Artikelnummer: " + productArticleNumber;
     SetWindowTextW(g_hBasePriceLabel, baseText.c_str());
 
-    // Jede Option bekommt ein eigenes Mengenfeld; Startwert bleibt bewusst 0.
-    // Erweiterungen (z. B. Mindestmengen) sollten hier zentral eingreifen.
+    // Each option gets its own quantity field; the initial value intentionally stays 0.
+    // Extensions (e.g. minimum quantities) should be applied centrally here.
     for (size_t index = 0; index < g_currentConfiguration.options.size(); ++index)
     {
         const ProductOption& option = g_currentConfiguration.options[index];
@@ -537,14 +516,14 @@ void RenderProductConfiguration(HWND hWnd)
     UpdateTotalPriceLabel();
 }
 
-// Schließt das Anwendungs-Fenster (aktuell nicht vollständig implementiert).
+// Closes the application window (currently not fully implemented).
 void CloseAppButton(HWND hWnd)
 {
     UNREFERENCED_PARAMETER(hWnd);
 }
 
-// Passt die Position und Größe aller Fenster-Controls an, wenn sich das Client-Änder.
-// Berechnet Layout basierend auf dem verfügbaren Platz im Fenster.
+// Adjusts the position and size of all window controls when the client area changes.
+// Calculates layout based on available space in the window.
 void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
 {
     UNREFERENCED_PARAMETER(hWnd);
@@ -646,8 +625,8 @@ void UpdateLayout(HWND hWnd, int clientWidth, int clientHeight)
     }
 }
 
-// Füllt das Produkt-Dropdown mit allen verfügbaren Produktdaten-Verzeichnissen.
-// Sortiert die Ordner alphabetisch und setzt den ersten als Standardauswahl.
+// Populates the product dropdown with all available product data directories.
+// Sorts folders alphabetically and sets the first one as default selection.
 void PopulateProductDropdown(HWND hCombo)
 {
     SendMessageW(hCombo, CB_RESETCONTENT, 0, 0);
@@ -657,7 +636,7 @@ void PopulateProductDropdown(HWND hCombo)
     const std::filesystem::path productDataPath = FindProductDataDirectory();
     if (productDataPath.empty())
     {
-        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Kein produktdaten-Ordner gefunden"));
+        SendMessageW(hCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Kein productdata-Ordner gefunden"));
         EnableWindow(hCombo, FALSE);
         return;
     }
@@ -684,8 +663,8 @@ void PopulateProductDropdown(HWND hCombo)
         if (itemIndex >= 0)
         {
             g_productFolderPaths.push_back(productFolder.wstring());
-            // ItemData speichert den Index in g_productFolderPaths, damit später
-            // aus der UI-Auswahl schnell und stabil der echte Ordnerpfad geladen wird.
+            // ItemData stores the index in g_productFolderPaths so the real folder path
+            // can later be loaded quickly and reliably from the UI selection.
             SendMessageW(hCombo, CB_SETITEMDATA, static_cast<WPARAM>(itemIndex), static_cast<LPARAM>(g_productFolderPaths.size() - 1));
         }
     }
@@ -871,8 +850,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
-// Zentraler Message-Dispatcher für alle Fenster-Ereignisse.
-// Verarbeitet CREATE, SIZE, DESTROY, COMMAND und PAINT Nachrichten.
+// Central message dispatcher for all window events.
+// Handles CREATE, SIZE, DESTROY, COMMAND and PAINT messages.
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -1316,9 +1295,9 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
-// Liest die Menge aus einem Quantity-Input-Feld.
-// Gibt 0 zurück, wenn das Feld leer ist oder eine ungültige Zahl enthält.
-// Negative Werte werden auf 0 begrenzt.
+// Reads the quantity from a quantity input field.
+// Returns 0 if the field is empty or contains an invalid number.
+// Negative values are clamped to 0.
 int GetOptionQuantity(size_t index)
 {
     if (index >= g_optionQuantityInputs.size() || g_optionQuantityInputs[index] == nullptr)

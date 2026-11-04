@@ -1,14 +1,14 @@
-// header.h: Includedatei für Include-Standardsystemdateien
-// oder projektspezifische Includedateien.
+// header.h: Include file for standard system include files
+// or project-specific include files.
 //
 
 #pragma once
 
 #include "targetver.h"
-#define WIN32_LEAN_AND_MEAN             // Selten verwendete Komponenten aus Windows-Headern ausschließen
-// Windows-Headerdateien
+#define WIN32_LEAN_AND_MEAN             // Exclude rarely used components from Windows headers
+// Windows header files
 #include <windows.h>
-// C RunTime-Headerdateien
+// C RunTime header files
 #include <stdlib.h>
 #include <malloc.h>
 #include <memory.h>

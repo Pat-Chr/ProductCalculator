@@ -1,6 +1,7 @@
 #include "framework.h"
 #include "NewProductCreator.h"
 #include "Resource.h"
+#include "ProductDataDirectoryResolver.h"
 
 #include <cwctype>
 #include <filesystem>
@@ -91,7 +92,7 @@ namespace
 
 		if (id.empty())
 		{
-			id = L"produkt";
+			id = L"product";
 		}
 
 		return id;
@@ -150,28 +151,7 @@ namespace
 
 	std::filesystem::path FindProductDataDirectoryForCreation()
 	{
-		wchar_t modulePath[MAX_PATH] = {};
-		GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
-
-		std::filesystem::path currentPath = std::filesystem::path(modulePath).parent_path();
-		while (!currentPath.empty())
-		{
-			const std::filesystem::path candidatePath = currentPath / L"produktdaten";
-			std::error_code ec;
-			if (std::filesystem::exists(candidatePath, ec) && std::filesystem::is_directory(candidatePath, ec))
-			{
-				return candidatePath;
-			}
-
-			if (currentPath == currentPath.root_path())
-			{
-				break;
-			}
-
-			currentPath = currentPath.parent_path();
-		}
-
-		return {};
+		return FindOrMigrateProductDataDirectory();
 	}
 
 	INT_PTR CALLBACK NewProductNameDialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
@@ -281,7 +261,7 @@ NewProductCreationStatus CreateNewProductFolderWithDefaults(HWND ownerWindow, st
 	const std::string utf8ProductId = EscapeJsonString(ToUtf8String(productId));
 	const std::string utf8ProductName = EscapeJsonString(ToUtf8String(enteredProductName));
 
-	const std::filesystem::path configPath = candidatePath / L"produkt.json";
+	const std::filesystem::path configPath = candidatePath / L"product.json";
 	std::ofstream file(configPath, std::ios::binary | std::ios::trunc);
 	if (!file)
 	{
@@ -291,8 +271,8 @@ NewProductCreationStatus CreateNewProductFolderWithDefaults(HWND ownerWindow, st
 	}
 
 	file << "{\n"
-		<< "  \"produktId\": \"" << utf8ProductId << "\",\n"
-		<< "  \"produktname\": \"" << utf8ProductName << "\",\n"
+		<< "  \"productId\": \"" << utf8ProductId << "\",\n"
+		<< "  \"productName\": \"" << utf8ProductName << "\",\n"
 		<< "  \"artikelnummer\": \"-\",\n"
 		<< "  \"basispreis\": 0.0,\n"
 		<< "  \"optionen\": []\n"

@@ -26,8 +26,8 @@ Die Anwendung soll Produktkonfigurationen einfach auswählbar, bearbeitbar, neu 
 │  ┌─────────────────────┐      ┌─────────────────────┐      ┌─────────────-┐  │
 │  │       UI Layer      │      │      Data Layer     │      │ Logic Layer  │  │
 │  │ - Hauptfenster      │      │ - settings.json     │      │ - Preisform. │  │
-│  │ - Edit-Fenster      │      │ - produktdaten/*    │      │ - Summen     │  │
-│  │ - Neu-Produkt-Dialog│      │ - produkt.json      │      │ - Validierung│  │
+│  │ - Edit-Fenster      │      │ - productdata/*    │      │ - Summen     │  │
+│  │ - Neu-Produkt-Dialog│      │ - product.json      │      │ - Validierung│  │
 │  │ - Summary-Fenster   │      │ - UTF-8 JSON I/O    │      │ - UI Sync    │  │
 │  └─────────────────────┘      └─────────────────────┘      └─────────────-┘  │
 │                                                                              │
@@ -70,7 +70,7 @@ Anzeige (Labels, Mengenfelder, Summary, MessageBox)
 | `ProductCalculator.cpp` | Einstiegspunkt, Hauptfenster, Layout, Dropdown-Befüllung, Preisberechnung |
 | `ProductCalculator.h` | Gemeinsame Datentypen und globale Schnittstellen |
 | `EditProductWindow.cpp/.h` | Eigenes Bearbeitungsfenster für Basispreis/Optionen inkl. JSON-Speicherung |
-| `NewProductCreator.cpp/.h` | Dialog und Erzeugung neuer Produktordner mit Default-`produkt.json` |
+| `NewProductCreator.cpp/.h` | Dialog und Erzeugung neuer Produktordner mit Default-`product.json` |
 | `ProductDeletion.cpp/.h` | Bestätigung und rekursives Löschen eines Produktordners |
 | `ProductSummaryWindow.cpp` | Eigenes Fenster für Textzusammenfassung und Clipboard-Kopie |
 | `ProjectPersistence.cpp/.h` | Speichern/Laden von Projektdateien (`.pcproj`) inkl. Mengen und eingebettetem Produkt-JSON |
@@ -84,7 +84,7 @@ Anzeige (Labels, Mengenfelder, Summary, MessageBox)
 |-------|-------|
 | `ProductCalculator.vcxproj` | Projektdefinition (C++20, Quellen, Post-Build-Copy) |
 | `settings.json` | App-Einstellung `standardwaehrung` |
-| `produktdaten/<produkt>/produkt.json` | Persistente Produktdefinition |
+| `productdata/<product>/product.json` | Persistente Produktdefinition |
 | `saved_projects/*.pcproj` | Persistente Projektstände (Produktbezug, Mengen, eingebettetes Produkt-JSON) |
 | `saved_projects/restored_products/*` | Laufzeit-Wiederherstellungen aus gespeicherten Projekten (wird beim Beenden geleert) |
 
@@ -106,12 +106,12 @@ AppSettings g_appSettings;
 
 ## 4. Datenmodell
 
-### 4.1 Produktmodell (`produkt.json`)
+### 4.1 Produktmodell (`product.json`)
 
 ```json
 {
-  "produktId": "beispielprodukt",
-  "produktname": "Beispielprodukt",
+  "productId": "exampleproduct",
+  "productName": "Example Product",
   "basispreis": 1000.0,
   "optionen": [
     { "name": "Standardausstattung", "preis": 0.0 },
@@ -151,7 +151,7 @@ Hinweise:
 
 ### 5.3 Dateibasierte Persistenz
 - Produktdaten liegen je Produkt in eigenem Unterordner.
-- `produktdaten` und `settings.json` werden per Post-Build in das Ausgabeverzeichnis kopiert.
+- `productdata` und `settings.json` werden per Post-Build in das Ausgabeverzeichnis kopiert.
 - Pfade werden robust relativ zum EXE-Standort in Parent-Verzeichnissen gesucht.
 
 ### 5.4 JSON-Verarbeitung
@@ -166,25 +166,25 @@ Hinweise:
 1. `wWinMain` lädt Ressourcen-Strings.
 2. `settings.json` wird gelesen (`standardwaehrung`).
 3. Hauptfenster wird erstellt.
-4. Produkt-Dropdown wird mit Ordnern unter `produktdaten` gefüllt.
+4. Produkt-Dropdown wird mit Ordnern unter `productdata` gefüllt.
 
 ### 6.2 Produktauswahl und Kalkulation
 1. Benutzer wählt Produkt im Dropdown.
-2. `produkt.json` wird geladen.
+2. `product.json` wird geladen.
 3. Optionen + Mengenfelder werden neu gerendert.
 4. Bei Mengenänderung wird der Endpreis sofort neu berechnet.
 
 ### 6.3 Produkt bearbeiten
 1. Öffnen über Menü oder Button.
 2. Falls Fenster bereits existiert: nur fokussieren/wiederherstellen.
-3. Speichern schreibt `produkt.json`.
+3. Speichern schreibt `product.json`.
 4. Hauptfenster wird via `WM_PRODUCT_CONFIGURATION_UPDATED` synchronisiert.
 5. Bearbeitungsfenster bleibt geöffnet.
 
 ### 6.4 Neues Produkt anlegen
 1. Name wird per Dialog abgefragt.
 2. Ordnername wird bereinigt und auf Kollision geprüft.
-3. Ordner + Default-`produkt.json` (`basispreis: 0.0`, `optionen: []`) werden erzeugt.
+3. Ordner + Default-`product.json` (`basispreis: 0.0`, `optionen: []`) werden erzeugt.
 4. Dropdown wird aktualisiert und neues Produkt selektiert.
 
 ### 6.5 Produkt löschen
@@ -197,7 +197,7 @@ Hinweise:
 - Text kann direkt in die Zwischenablage kopiert werden.
 
 ### 6.7 Projekt speichern/laden
-1. Speichern erzeugt eine `.pcproj` mit Produktpfad/-name, Mengen und eingebettetem `produkt.json`.
+1. Speichern erzeugt eine `.pcproj` mit Produktpfad/-name, Mengen und eingebettetem `product.json`.
 2. Laden stellt bevorzugt die eingebettete Produktkonfiguration wieder her.
 3. Falls kein eingebettetes Produkt vorhanden ist, erfolgt Fallback über Produktpfad/-name.
 4. Nach dem Laden werden Mengenfelder befüllt und die Kalkulation aktualisiert.
@@ -223,7 +223,7 @@ Hinweise:
 
 ### 7.2 Erweiterungspunkte
 - Zusätzliche Preisregeln (Rabatte, Staffelpreise, Steuern)
-- Validierungsschemata für `produkt.json`
+- Validierungsschemata für `product.json`
 - Mehrsprachige UI-Strings über Ressourcen
 - Persistente Sortierung/Filter im Produkt-Dropdown
 
@@ -272,7 +272,7 @@ Hinweise:
 ## 10. Referenzen
 
 - [README.md](README.md) – Projektüberblick
-- [produktdaten/README_Produkte.md](produktdaten/README_Produkte.md) – Produktdatenstruktur
+- [productdata/README_Produkte.md](productdata/README_Produkte.md) – Produktdatenstruktur
 - [LICENSE.txt](LICENSE.txt) – MIT License
 - Windows SDK Dokumentation für Win32 API
 

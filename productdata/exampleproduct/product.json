@@ -1,6 +1,6 @@
 {
-  "produktId": "beispielprodukt",
-  "produktname": "Beispielprodukt",
+  "productId": "exampleproduct",
+  "productName": "Example Product",
   "artikelnummer": "-",
   "basispreis": 1000.0,
   "optionen": [

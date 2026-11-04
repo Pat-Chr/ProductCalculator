@@ -13,10 +13,10 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="produktdaten">
+    <Filter Include="productdata">
       <UniqueIdentifier>{A99189A0-B877-4865-8590-25B760ADDCB8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="produktdaten\beispielprodukt">
+    <Filter Include="productdata\\exampleproduct">
       <UniqueIdentifier>{C6774608-B9CF-4D38-B6EF-086E47495957}</UniqueIdentifier>
     </Filter>
     <Filter Include="docs">
@@ -107,11 +107,11 @@
     <None Include="README.md" />
     <None Include="LICENSE.txt" />
     <None Include="ARCHITECTURE.md" />
-    <None Include="produktdaten\README_Produkte.md">
-      <Filter>produktdaten</Filter>
+    <None Include="productdata\\README_Produkte.md">
+      <Filter>productdata</Filter>
     </None>
-    <None Include="produktdaten\beispielprodukt\produkt.json">
-      <Filter>produktdaten\beispielprodukt</Filter>
+    <None Include="productdata\\exampleproduct\\product.json">
+      <Filter>productdata\\exampleproduct</Filter>
     </None>
     <None Include="settings.json" />
     <None Include="CHANGELOG.md" />
@@ -120,3 +120,6 @@
     </None>
   </ItemGroup>
 </Project>
+
+
+

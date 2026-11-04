@@ -176,8 +176,8 @@
   <ItemGroup>
     <None Include="ARCHITECTURE.md" />
     <None Include="CHANGELOG.md" />
-    <None Include="produktdaten\beispielprodukt\produkt.json" />
-    <None Include="produktdaten\README_Produkte.md" />
+    <None Include="productdata\\exampleproduct\\product.json" />
+    <None Include="productdata\README_Products.md" />
     <None Include="README.md" />
     <None Include="LICENSE.txt" />
     <None Include="settings.json" />
@@ -188,14 +188,14 @@
       <Command>copy /Y "$(ProjectDir)README.md" "$(OutDir)README.md"
 copy /Y "$(ProjectDir)LICENSE.txt" "$(OutDir)LICENSE.txt"
 copy /Y "$(ProjectDir)settings.json" "$(OutDir)settings.json"
-xcopy /E /I /Y "$(ProjectDir)produktdaten" "$(OutDir)produktdaten\"
+xcopy /E /I /Y "$(ProjectDir)productdata" "$(OutDir)productdata\\"
 powershell -Command "&amp;{ $files = Get-ChildItem '$(OutDir)' -File | Select-Object -ExpandProperty Name; $zipPath = '$(OutDir)ProductCalculator_Release.zip'; Compress-Archive -Path '$(OutDir)*' -DestinationPath $zipPath -Force; Write-Host 'Created release archive: $zipPath' }"</Command>
     </PostBuildEvent>
     <PostBuildEvent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       <Command>copy /Y "$(ProjectDir)README.md" "$(OutDir)README.md"
 copy /Y "$(ProjectDir)LICENSE.txt" "$(OutDir)LICENSE.txt"
 copy /Y "$(ProjectDir)settings.json" "$(OutDir)settings.json"
-xcopy /E /I /Y "$(ProjectDir)produktdaten" "$(OutDir)produktdaten\"
+xcopy /E /I /Y "$(ProjectDir)productdata" "$(OutDir)productdata\\"
 powershell -Command "&amp;{ $files = Get-ChildItem '$(OutDir)' -File | Select-Object -ExpandProperty Name; $zipPath = '$(OutDir)ProductCalculator_Release.zip'; Compress-Archive -Path '$(OutDir)*' -DestinationPath $zipPath -Force; Write-Host 'Created release archive: $zipPath' }"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

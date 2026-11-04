@@ -16,10 +16,10 @@ Die Anwendung unterstützt dabei, schnell passende Produktvarianten zusammenzust
 ![ProductCalculator – Programmübersicht](docs/images/productcalculator-screenshot.png)
 
 ## Funktionsumfang
-- Auswahl vorhandener Produkte aus `produktdaten/*`
+- Auswahl vorhandener Produkte aus `productdata/*`
 - Dynamische Preisberechnung aus Basispreis + Optionen × Menge
 - Bearbeiten von Basispreis und Optionen in eigenem Bearbeitungsfenster
-- Anlegen neuer Produkte inkl. Standard-`produkt.json`
+- Anlegen neuer Produkte inkl. Standard-`product.json`
 - Löschen bestehender Produkte mit Sicherheitsabfrage
 - Ergebnisübersicht in eigenem Fenster mit Kopierfunktion (Clipboard)
 - Projekt speichern/laden als `.pcproj` inkl. Mengen und eingebetteter Produktkonfiguration
@@ -37,11 +37,11 @@ Die Anwendung unterstützt dabei, schnell passende Produktvarianten zusammenzust
 
 ## Datenformat
 Produktdaten liegen je Produkt in einem eigenen Ordner:
-- `produktdaten/<produktname>/produkt.json`
+- `productdata/<productName>/product.json`
 
 Beispielstruktur:
-- `produktId` (String)
-- `produktname` (String)
+- `productId` (String)
+- `productName` (String)
 - `basispreis` (Zahl)
 - `optionen[]` mit `name` und `preis`
 
@@ -61,7 +61,7 @@ App-Einstellungen:
 3. Projekt erstellen und starten.
 
 Hinweis:
-- Post-Build kopiert `README.md`, `LICENSE.txt`, `settings.json` und den Ordner `produktdaten` in das Ausgabeverzeichnis.
+- Post-Build kopiert `README.md`, `LICENSE.txt`, `settings.json` und den Ordner `productdata` in das Ausgabeverzeichnis.
 
 ## Projektstruktur (kurz)
 - `ProductCalculator.cpp/.h` – Hauptfenster, Auswahl, Preislogik und Projektaktionen
@@ -73,7 +73,7 @@ Hinweis:
 - `ProjectPersistence.cpp/.h` – Laden/Speichern von `.pcproj`
 - `RestoredProductsCleanup.cpp/.h` – Bereinigung temporärer Wiederherstellungen beim Beenden
 - `ProductCalculator.rc` / `Resource.h` – Ressourcen und IDs
-- `produktdaten/` – Produktkatalog
+- `productdata/` – Produktkatalog
 - `settings.json` – Grundeinstellungen
 - `ARCHITECTURE.md` – technische Architekturübersicht
 
@@ -89,5 +89,5 @@ Hinweis:
 ## Dokumentation
 - [ARCHITECTURE.md](ARCHITECTURE.md) – detaillierte Architektur
 - [CHANGELOG.md](CHANGELOG.md) – Änderungen pro Version
-- [produktdaten/README_Produkte.md](produktdaten/README_Produkte.md) – Produktdatenstruktur
+- [productdata/README_Produkte.md](productdata/README_Produkte.md) – Produktdatenstruktur
 - [LICENSE.txt](LICENSE.txt) – Lizenz

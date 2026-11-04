@@ -3,18 +3,18 @@
 #include <string>
 #include <windows.h>
 
-// Ereigniskonstante für Produktkonfigurations-Updates.
-// Wird vom Bearbeitungsfenster an das Hauptfenster gesendet, um eine Synchronisation auszulösen.
+// Event constant for product configuration updates.
+// Sent from the edit window to the main window to trigger synchronization.
 constexpr UINT WM_PRODUCT_CONFIGURATION_UPDATED = WM_APP + 1;
 
-// Öffnet das Bearbeitungsfenster für die Produktbearbeitung.
-// Falls das Fenster bereits offen ist, wird es nur fokussiert und wiederhergestellt.
-// Parameter:
-//   ownerWindow - Das Hauptfenster (für Modality und Nachrichten)
-//   productFolderPath - Pfad zum Produktdaten-Verzeichnis mit der produkt.json Datei
-//   showProjectSaveButton - Steuert, ob der Button "Projekt speichern" sichtbar ist
-//   showProductSaveButton - Steuert, ob der Button "Produkt speichern" sichtbar ist
-// Rückgabewert:
-//   true - Wenn das Fenster erfolgreich geöffnet wurde (oder bereits offen war)
-//   false - Wenn ownerWindow nullptr oder productFolderPath leer ist
+// Opens the edit window for product editing.
+// If the window is already open, it is only focused and restored.
+// Parameters:
+//   ownerWindow - The main window (for modality and messages)
+//   productFolderPath - Path to the product data directory containing product.json
+//   showProjectSaveButton - Controls whether the "Projekt speichern" button is visible
+//   showProductSaveButton - Controls whether the "Produkt speichern" button is visible
+// Return value:
+//   true - If the window was opened successfully (or was already open)
+//   false - If ownerWindow is nullptr or productFolderPath is empty
 bool OpenEditProductWindow(HWND ownerWindow, const std::wstring& productFolderPath, bool showProjectSaveButton = true, bool showProductSaveButton = true);

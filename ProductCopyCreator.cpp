@@ -1,6 +1,7 @@
 #include "framework.h"
 #include "ProductCopyCreator.h"
 #include "Resource.h"
+#include "ProductDataDirectoryResolver.h"
 
 #include <cwctype>
 #include <filesystem>
@@ -93,7 +94,7 @@ namespace
 
 		if (id.empty())
 		{
-			id = L"produkt";
+			id = L"product";
 		}
 
 		return id;
@@ -152,33 +153,12 @@ namespace
 
 	std::filesystem::path FindProductDataDirectoryForCopy()
 	{
-		wchar_t modulePath[MAX_PATH] = {};
-		GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
-
-		std::filesystem::path currentPath = std::filesystem::path(modulePath).parent_path();
-		while (!currentPath.empty())
-		{
-			const std::filesystem::path candidatePath = currentPath / L"produktdaten";
-			std::error_code ec;
-			if (std::filesystem::exists(candidatePath, ec) && std::filesystem::is_directory(candidatePath, ec))
-			{
-				return candidatePath;
-			}
-
-			if (currentPath == currentPath.root_path())
-			{
-				break;
-			}
-
-			currentPath = currentPath.parent_path();
-		}
-
-		return {};
+		return FindOrMigrateProductDataDirectory();
 	}
 
 	bool TryUpdateCopiedProductJson(const std::filesystem::path& copiedProductPath, const std::wstring& newProductName)
 	{
-		const std::filesystem::path jsonPath = copiedProductPath / L"produkt.json";
+		const std::filesystem::path jsonPath = copiedProductPath / L"product.json";
 		std::ifstream input(jsonPath, std::ios::binary);
 		if (!input)
 		{
@@ -191,16 +171,16 @@ namespace
 		const std::string escapedName = EscapeJsonString(ToUtf8String(newProductName));
 		const std::string escapedId = EscapeJsonString(ToUtf8String(BuildProductId(newProductName)));
 
-		const std::regex namePattern(R"("produktname"\s*:\s*"(?:\\.|[^"\\])*")");
-		const std::regex idPattern(R"("produktId"\s*:\s*"(?:\\.|[^"\\])*")");
+		const std::regex namePattern(R"("productName"\s*:\s*"(?:\\.|[^"\\])*")");
+		const std::regex idPattern(R"("productId"\s*:\s*"(?:\\.|[^"\\])*")");
 
 		if (!std::regex_search(jsonContent, namePattern) || !std::regex_search(jsonContent, idPattern))
 		{
 			return false;
 		}
 
-		jsonContent = std::regex_replace(jsonContent, namePattern, "\"produktname\": \"" + escapedName + "\"");
-		jsonContent = std::regex_replace(jsonContent, idPattern, "\"produktId\": \"" + escapedId + "\"");
+		jsonContent = std::regex_replace(jsonContent, namePattern, "\"productName\": \"" + escapedName + "\"");
+		jsonContent = std::regex_replace(jsonContent, idPattern, "\"productId\": \"" + escapedId + "\"");
 
 		std::ofstream output(jsonPath, std::ios::binary | std::ios::trunc);
 		if (!output)
