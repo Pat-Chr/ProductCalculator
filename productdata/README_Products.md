@@ -17,7 +17,7 @@ The JSON file contains:
 - `productId` (Text)
 - `productName` (Text)
 - `artikelnummer` (Text; if no number, `"-"`)
-- `basispreis` (number)
-- `optionen` (list with `name`, `artikelnummer`, and `price`; missing option article numbers are treated as `"-"`)
+- `basePrice` (number)
+- `options` (list with `name`, `artikelnummer`, and `price`; missing option article numbers are treated as `"-"`)
 
 Manual creation or editing of folders and JSON files is still possible, but not required for new products.

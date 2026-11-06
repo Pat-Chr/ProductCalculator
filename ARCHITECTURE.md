@@ -116,10 +116,10 @@ AppSettings g_appSettings;
 {
   "productId": "exampleproduct",
   "productName": "Example Product",
-  "basispreis": 1000.0,
-  "optionen": [
-    { "name": "Standardausstattung", "preis": 0.0 },
-    { "name": "Premium-Paket", "preis": 249.9 }
+  "basePrice": 1000.0,
+  "options": [
+    { "name": "Standard Equipment", "price": 0.0 },
+    { "name": "Premium Package", "price": 249.9 }
   ]
 }
 ```
@@ -127,12 +127,12 @@ AppSettings g_appSettings;
 ### 4.2 Internal Structures
 - `ProductOption { name, price }`
 - `ProductConfiguration { basePrice, options[] }`
-- `AppSettings { standardcurrency }`
+- `AppSettings { currency }`
 
 ### 4.3 Price Calculation
 
 ```
-Endpreis = basispreis + Σ(option.preis × menge)
+FinalPrice = basePrice + Σ(option.price × quantity)
 ```
 
 Notes:
@@ -170,7 +170,7 @@ Notes:
 
 ### 6.1 Start and Initialization
 1. `wWinMain` loads resource strings.
-2. `settings.json` is read (`standardcurrency`).
+2. `settings.json` is read (`currency`).
 3. Main window is created.
 4. Product dropdown is populated with folders under `productdata`.
 
@@ -190,7 +190,7 @@ Notes:
 ### 6.4 Create New Product
 1. Name is queried via dialog.
 2. Folder name is cleaned and checked for collision.
-3. Folder + default `product.json` (`basispreis: 0.0`, `optionen: []`) are created.
+3. Folder + default `product.json` (`basePrice: 0.0`, `options: []`) are created.
 4. Dropdown is updated and new product selected.
 
 ### 6.5 Delete Product

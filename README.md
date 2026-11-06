@@ -7,7 +7,7 @@ ProductCalculator is a Win32 desktop application for configuring products based 
 ## Metadata
 
 - **Created by:** Patrick Christe
-- **Date:** 01.11.2026
+- **Date:** 04.11.2026
 - **License:** MIT License (see [LICENSE.txt](LICENSE.txt))
 - **Repository:** [GitHub](https://github.com/Pat-Chr/ProductCalculator)
 
@@ -49,11 +49,11 @@ Product data for each product is stored in its own folder:
 Example structure:
 - `productId` (String)
 - `productName` (String)
-- `basispreis` (number)
-- `optionen[]` with `name` and `price`
+- `basePrice` (number)
+- `options[]` with `name` and `price`
 
 App settings:
-- `settings.json` → `standardwaehrung` (e.g., `CHF`)
+- `settings.json` → `currency` (e.g., `CHF`)
 
 ## Technical Notes
 
